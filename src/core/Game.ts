@@ -6,6 +6,7 @@ import { World } from '../world/World';
 import { ChunkManager } from '../world/ChunkManager';
 import { Player } from '../player/Player';
 import { Controls } from '../player/Controls';
+import { TouchControls, isTouchDevice } from '../player/TouchControls';
 import { BlockInteraction } from '../interaction/BlockInteraction';
 import { installCrosshair } from '../ui/crosshair';
 import { Hotbar } from '../ui/hotbar';
@@ -90,6 +91,18 @@ export class Game {
     installCrosshair();
     this.hotbar = new Hotbar();
     this.installMouse(canvas);
+
+    if (isTouchDevice()) {
+      new TouchControls({
+        input: this.controls.input,
+        player: this.player,
+        onBreak: () => this.interaction.break(),
+        onPlace: () => {
+          this.interaction.activeBlock = this.hotbar.getActive();
+          this.interaction.place();
+        },
+      });
+    }
 
     this.loop = new Loop(
       (dt) => this.fixedUpdate(dt),

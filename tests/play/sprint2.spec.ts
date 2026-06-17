@@ -45,7 +45,12 @@ test.describe('Sprint 2: first-person movement & physics', () => {
     await page.evaluate(() => {
       window.__game.input!.forward = true;
     });
-    await page.waitForTimeout(300);
+    // Poll until the player has clearly advanced (robust to scheduling jitter).
+    await page.waitForFunction(
+      (z0) => window.__game.getPlayer!().z < z0 - 0.6,
+      before.z,
+      { timeout: 5_000 },
+    );
     await page.evaluate(() => {
       window.__game.input!.forward = false;
     });

@@ -29,6 +29,26 @@ npm run build      # tsc --noEmit && vite build
 
 地形には木が生え、昼夜が約2分周期で巡ります。
 
+### スマホ（タッチ）操作
+タッチ端末では自動で画面上に操作 UI が出ます。
+- 画面**左側をドラッグ**: 移動（フローティングジョイスティック）
+- 画面**右側をドラッグ**: 視点
+- **⛏ ボタン**: 破壊、**⬛ ボタン**: 設置、**⤒ ボタン**: ジャンプ
+- 下部の**ホットバーをタップ**: ブロック選択
+
+（PC でも `?touch=1` を付けるとタッチ UI を表示できます。）
+
+## 公開（GitHub Pages）
+
+`main` または開発ブランチへの push で、GitHub Actions が `dist/` を GitHub Pages へ
+自動デプロイします（`.github/workflows/deploy.yml`）。
+
+初回のみリポジトリ設定が必要です:
+**Settings → Pages → Build and deployment → Source =「GitHub Actions」**
+
+公開後の URL は `https://<ユーザー名>.github.io/minecraft_crone/` で、スマホの
+ブラウザからそのまま遊べます。
+
 編集内容は IndexedDB に保存され、リロードしても復元されます（地形はシードから
 決定論的に再生成）。
 
@@ -86,6 +106,7 @@ npm run test:play   # 環境により PLAYWRIGHT_BROWSERS_PATH の設定が必�
 - [x] Sprint 5: フラッドフィル照明
 - [x] Sprint 6: セーブ/ロード（IndexedDB）← 第一マイルストーン完成
 - [x] Sprint 7: 木（決定論的構造物）＋ 昼夜サイクル
+- [x] Sprint 8: スマホ対応（タッチ操作）＋ GitHub Pages 自動デプロイ
 - [ ] 今後（任意）: Web Worker 化、グリーディメッシング、ブロック光源（松明）、洞窟 等
 
 > 視錐台カリングは Three.js が各メッシュの境界球で自動適用するため、チャンク単位で

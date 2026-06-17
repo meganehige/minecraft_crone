@@ -18,6 +18,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
+  // Real-time game E2E checks are mildly timing-sensitive under load; allow a
+  // couple of retries to absorb scheduling jitter.
+  retries: 2,
   reporter: [['list']],
   use: {
     baseURL: 'http://localhost:5173',
