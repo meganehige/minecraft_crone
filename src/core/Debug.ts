@@ -73,6 +73,14 @@ export interface GameDebugApi {
   // --- Sprint 6: persistence ---
   /** Force-flush pending edits to IndexedDB. */
   save?: () => Promise<void>;
+
+  // --- Sprint 7: day/night ---
+  /** Override the daylight factor 0..1 (1 = noon, 0 = midnight). */
+  setDaylight?: (v: number) => void;
+  /** Current daylight factor 0..1. */
+  getDaylight?: () => number;
+  /** Average framebuffer luminance in [0,1]. */
+  sampleBrightness?: () => number;
 }
 
 declare global {

@@ -9,6 +9,7 @@ import { Controls } from '../player/Controls';
 import { BlockInteraction } from '../interaction/BlockInteraction';
 import { installCrosshair } from '../ui/crosshair';
 import { Hotbar } from '../ui/hotbar';
+import { getMaterials } from '../render/materials';
 import type { SaveManager } from '../persistence/SaveManager';
 
 const SIZE = Config.CHUNK_SIZE;
@@ -35,10 +36,25 @@ export class Game {
   private readonly save?: SaveManager;
   private frozen = false;
 
+  // Day/night cycle.
+  private daylight = 1;
+  private daylightOverride: number | null = null;
+  private clock = 0;
+  private lastClock = 0;
+  private readonly dayColor = new THREE.Color(0x87ceeb);
+  private readonly nightColor = new THREE.Color(0x05080f);
+  private readonly skyColor = new THREE.Color();
+  private sampleCanvas: HTMLCanvasElement | null = null;
+
   constructor(canvas: HTMLCanvasElement, save?: SaveManager) {
     this.save = save;
     const seed = save?.seed ?? DEFAULT_SEED;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    // preserveDrawingBuffer lets the debug brightness sampler read the frame.
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      preserveDrawingBuffer: true,
+    });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(Config.SKY_COLOR);
 
@@ -129,6 +145,11 @@ export class Game {
         this.frozen = frozen;
       },
       save: () => this.save?.flush() ?? Promise.resolve(),
+      setDaylight: (v) => {
+        this.daylightOverride = Math.max(0, Math.min(1, v));
+      },
+      getDaylight: () => this.daylight,
+      sampleBrightness: () => this.sampleBrightness(),
     });
 
     this.resize();
@@ -180,8 +201,59 @@ export class Game {
   private readonly eye = new THREE.Vector3();
   private readonly lookAt = new THREE.Vector3();
 
+  /**
+   * Advance the day/night cycle and apply it. Lighting is baked per-mesh, so
+   * day/night is applied globally by scaling the material colour (a multiplier
+   * over the texture) and lerping the sky/fog colour — no remeshing. Block
+   * light would ideally be exempt from dimming; with no emitters yet this is a
+   * non-issue (noted for a future shader-based pass).
+   */
+  private updateDayNight(): void {
+    const now = performance.now();
+    if (this.lastClock === 0) this.lastClock = now;
+    const dt = (now - this.lastClock) / 1000;
+    this.lastClock = now;
+
+    if (this.daylightOverride !== null) {
+      this.daylight = this.daylightOverride;
+    } else {
+      const DAY_LENGTH = 120; // seconds per full cycle
+      this.clock += dt;
+      this.daylight = 0.5 + 0.5 * Math.sin((this.clock / DAY_LENGTH) * Math.PI * 2);
+    }
+
+    const floor = 0.18;
+    const b = floor + (1 - floor) * this.daylight;
+    const materials = getMaterials();
+    (materials.opaque as THREE.MeshBasicMaterial).color.setScalar(b);
+    (materials.transparent as THREE.MeshBasicMaterial).color.setScalar(b);
+
+    this.skyColor.lerpColors(this.nightColor, this.dayColor, this.daylight);
+    (this.scene.background as THREE.Color).copy(this.skyColor);
+    if (this.scene.fog) this.scene.fog.color.copy(this.skyColor);
+    this.renderer.setClearColor(this.skyColor);
+  }
+
+  /** Average framebuffer luminance in [0,1] (used by day/night tests). */
+  private sampleBrightness(): number {
+    const src = this.renderer.domElement;
+    if (!this.sampleCanvas) this.sampleCanvas = document.createElement('canvas');
+    const c = this.sampleCanvas;
+    c.width = 64;
+    c.height = 64;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(src, 0, 0, 64, 64);
+    const data = ctx.getImageData(0, 0, 64, 64).data;
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      sum += (data[i]! + data[i + 1]! + data[i + 2]!) / 3;
+    }
+    return sum / (64 * 64) / 255;
+  }
+
   private render(alpha: number): void {
     this.manager.processQueues();
+    this.updateDayNight();
 
     const p = this.player;
     this.eye.set(
