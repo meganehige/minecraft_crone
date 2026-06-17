@@ -2,5 +2,7 @@
 node_modules/
 dist/
 
-# Playwright MCP runtime output
+# Playwright
 .playwright-mcp/
+test-results/
+playwright-report/
