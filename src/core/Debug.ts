@@ -69,6 +69,10 @@ export interface GameDebugApi {
   setActiveBlock?: (id: BlockId) => void;
   /** Freeze/unfreeze player physics (used by scripted interaction tests). */
   setFrozen?: (frozen: boolean) => void;
+
+  // --- Sprint 6: persistence ---
+  /** Force-flush pending edits to IndexedDB. */
+  save?: () => Promise<void>;
 }
 
 declare global {

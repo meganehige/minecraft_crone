@@ -8,6 +8,7 @@ import { BlockId } from './blocks/BlockType';
 import type { BlockSource } from './BlockSource';
 import { TerrainGenerator } from './generation/TerrainGenerator';
 import { LightEngine } from '../lighting/LightEngine';
+import type { SaveManager } from '../persistence/SaveManager';
 
 const MAX_LIGHT = Config.MAX_LIGHT;
 
@@ -32,6 +33,7 @@ export class World implements BlockSource {
   constructor(
     private readonly scene: THREE.Scene,
     seed: string | number,
+    private readonly save?: SaveManager,
   ) {
     this.generator = new TerrainGenerator(seed);
   }
@@ -92,6 +94,7 @@ export class World implements BlockSource {
     const lx = worldToLocal(wx);
     const lz = worldToLocal(wz);
     chunk.setBlock(lx, wy, lz, id);
+    this.save?.recordEdit(cx, cz, localIndex(lx, wy, lz), id);
     // Border edits affect the neighbouring chunk's boundary faces.
     if (lx === 0) this.markDirty(cx - 1, cz);
     if (lx === SIZE - 1) this.markDirty(cx + 1, cz);
@@ -106,6 +109,8 @@ export class World implements BlockSource {
 
   generateChunk(chunk: Chunk): void {
     this.generator.generate(chunk);
+    // Overlay persisted player edits on top of the deterministic baseline.
+    this.save?.applyEdits(chunk);
     // Neighbours can now cull faces against us; remesh them.
     for (const [dx, dz] of [
       [-1, 0],

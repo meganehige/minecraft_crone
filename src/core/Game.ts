@@ -9,6 +9,7 @@ import { Controls } from '../player/Controls';
 import { BlockInteraction } from '../interaction/BlockInteraction';
 import { installCrosshair } from '../ui/crosshair';
 import { Hotbar } from '../ui/hotbar';
+import type { SaveManager } from '../persistence/SaveManager';
 
 const SIZE = Config.CHUNK_SIZE;
 const DEFAULT_SEED = 'minecraft_crone';
@@ -31,9 +32,12 @@ export class Game {
   private readonly loop: Loop;
   private readonly interaction: BlockInteraction;
   private readonly hotbar: Hotbar;
+  private readonly save?: SaveManager;
   private frozen = false;
 
-  constructor(canvas: HTMLCanvasElement, seed: string | number = DEFAULT_SEED) {
+  constructor(canvas: HTMLCanvasElement, save?: SaveManager) {
+    this.save = save;
+    const seed = save?.seed ?? DEFAULT_SEED;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(Config.SKY_COLOR);
@@ -46,7 +50,7 @@ export class Game {
 
     // Lighting is baked into vertex colours by the LightEngine, so no scene
     // lights are needed (materials are MeshBasic).
-    this.world = new World(this.scene, seed);
+    this.world = new World(this.scene, seed, save);
     this.manager = new ChunkManager(this.world);
 
     // Pre-generate a 3x3 spawn area so the player lands on real ground.
@@ -124,10 +128,14 @@ export class Game {
       setFrozen: (frozen) => {
         this.frozen = frozen;
       },
+      save: () => this.save?.flush() ?? Promise.resolve(),
     });
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    window.addEventListener('beforeunload', () => {
+      void this.save?.flush();
+    });
   }
 
   private installMouse(canvas: HTMLCanvasElement): void {
