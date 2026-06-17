@@ -44,11 +44,8 @@ export class Game {
 
     this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
-    const sun = new THREE.DirectionalLight(0xffffff, 0.85);
-    sun.position.set(0.6, 1, 0.4);
-    this.scene.add(ambient, sun);
-
+    // Lighting is baked into vertex colours by the LightEngine, so no scene
+    // lights are needed (materials are MeshBasic).
     this.world = new World(this.scene, seed);
     this.manager = new ChunkManager(this.world);
 
@@ -112,6 +109,8 @@ export class Game {
         settled: this.manager.isSettled(),
       }),
       getBlock: (x, y, z) => this.world.getBlock(x, y, z),
+      getLight: (x, y, z) => this.world.getLight(x, y, z),
+      setBlock: (x, y, z, id) => this.world.setBlock(x, y, z, id),
       raycast: () => this.interaction.raycast(),
       breakBlock: () => this.interaction.break(),
       placeBlock: () => {

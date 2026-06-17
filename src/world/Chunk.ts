@@ -30,6 +30,12 @@ export class Chunk {
   readonly cx: number;
   readonly cz: number;
   readonly blocks: Uint8Array;
+  /** Sky light 0..15 per cell (separate from block light for clarity). */
+  readonly skyLight: Uint8Array;
+  /** Block light 0..15 per cell (from emitters). */
+  readonly blockLight: Uint8Array;
+  /** True once LightEngine has populated the light arrays for this state. */
+  lit = false;
 
   /** Needs a remesh. */
   dirty = true;
@@ -42,6 +48,15 @@ export class Chunk {
     this.cx = cx;
     this.cz = cz;
     this.blocks = new Uint8Array(VOLUME);
+    this.skyLight = new Uint8Array(VOLUME);
+    this.blockLight = new Uint8Array(VOLUME);
+  }
+
+  /** Combined light level (max of sky and block) at a local cell. */
+  getLight(lx: number, ly: number, lz: number): number {
+    if (!inChunkBounds(lx, ly, lz)) return 0;
+    const i = blockIndex(lx, ly, lz);
+    return Math.max(this.skyLight[i]!, this.blockLight[i]!);
   }
 
   getBlock(lx: number, ly: number, lz: number): BlockId {
@@ -53,6 +68,7 @@ export class Chunk {
     if (!inChunkBounds(lx, ly, lz)) return;
     this.blocks[blockIndex(lx, ly, lz)] = id;
     this.dirty = true;
+    this.lit = false;
   }
 
   dispose(): void {

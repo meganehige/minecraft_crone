@@ -3,10 +3,13 @@ import { Config } from '../core/Config';
 import { chunkKey, worldToChunk, worldToLocal } from '../math/coords';
 import { buildChunkMesh } from '../render/ChunkMesher';
 import { getMaterials } from '../render/materials';
-import { Chunk } from './Chunk';
+import { Chunk, blockIndex as localIndex } from './Chunk';
 import { BlockId } from './blocks/BlockType';
 import type { BlockSource } from './BlockSource';
 import { TerrainGenerator } from './generation/TerrainGenerator';
+import { LightEngine } from '../lighting/LightEngine';
+
+const MAX_LIGHT = Config.MAX_LIGHT;
 
 const SIZE = Config.CHUNK_SIZE;
 const HEIGHT = Config.CHUNK_HEIGHT;
@@ -55,6 +58,31 @@ export class World implements BlockSource {
     return chunk.getBlock(worldToLocal(wx), wy, worldToLocal(wz));
   }
 
+  getSkyLight(wx: number, wy: number, wz: number): number {
+    if (wy >= HEIGHT) return MAX_LIGHT;
+    if (wy < 0) return 0;
+    const chunk = this.getChunk(worldToChunk(wx), worldToChunk(wz));
+    // Unloaded/ungenerated columns are treated as open sky.
+    if (!chunk || !chunk.generated) return MAX_LIGHT;
+    const i = localIndex(worldToLocal(wx), wy, worldToLocal(wz));
+    return chunk.skyLight[i]!;
+  }
+
+  getBlockLight(wx: number, wy: number, wz: number): number {
+    if (wy < 0 || wy >= HEIGHT) return 0;
+    const chunk = this.getChunk(worldToChunk(wx), worldToChunk(wz));
+    if (!chunk || !chunk.generated) return 0;
+    const i = localIndex(worldToLocal(wx), wy, worldToLocal(wz));
+    return chunk.blockLight[i]!;
+  }
+
+  getLight(wx: number, wy: number, wz: number): number {
+    return Math.max(
+      this.getSkyLight(wx, wy, wz),
+      this.getBlockLight(wx, wy, wz),
+    );
+  }
+
   setBlock(wx: number, wy: number, wz: number, id: BlockId): void {
     if (wy < 0 || wy >= HEIGHT) return;
     const cx = worldToChunk(wx);
@@ -93,8 +121,12 @@ export class World implements BlockSource {
     const materials = getMaterials();
     const originX = chunk.cx * SIZE;
     const originZ = chunk.cz * SIZE;
-    const result = buildChunkMesh((lx, ly, lz) =>
-      this.getBlock(originX + lx, ly, originZ + lz),
+
+    LightEngine.computeChunkLight(this, chunk);
+
+    const result = buildChunkMesh(
+      (lx, ly, lz) => this.getBlock(originX + lx, ly, originZ + lz),
+      (lx, ly, lz) => this.getLight(originX + lx, ly, originZ + lz),
     );
 
     this.swapMesh(chunk, 'mesh', result.opaque, materials.opaque, originX, originZ);

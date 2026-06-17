@@ -112,11 +112,14 @@ export function getMaterials(): Materials {
   texture.generateMipmaps = false;
   texture.colorSpace = THREE.SRGBColorSpace;
 
-  const opaque = new THREE.MeshLambertMaterial({ map: texture });
-  const transparent = new THREE.MeshLambertMaterial({
+  // Lighting is baked into vertex colours (Minecraft-style), so MeshBasic is
+  // used and scene lights are ignored.
+  const opaque = new THREE.MeshBasicMaterial({ map: texture, vertexColors: true });
+  const transparent = new THREE.MeshBasicMaterial({
     map: texture,
+    vertexColors: true,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.8,
     depthWrite: false,
     side: THREE.DoubleSide,
   });

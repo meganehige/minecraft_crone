@@ -55,6 +55,10 @@ export interface GameDebugApi {
   // --- Sprint 4: block interaction ---
   /** Block id at a world coordinate. */
   getBlock?: (x: number, y: number, z: number) => BlockId;
+  /** Combined light level (0..15) at a world coordinate (Sprint 5). */
+  getLight?: (x: number, y: number, z: number) => number;
+  /** Directly set a block (used by scripted tests). */
+  setBlock?: (x: number, y: number, z: number, id: BlockId) => void;
   /** Raycast from the player's eye; null if nothing within reach. */
   raycast?: () => RayHit | null;
   /** Break the targeted block; returns whether one was removed. */
