@@ -1,10 +1,23 @@
+import type { InputState } from '../player/Controls';
+
+export interface PlayerSnapshot {
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  onGround: boolean;
+  yaw: number;
+  pitch: number;
+}
+
 /**
  * Test/debug API exposed on `window.__game`.
  *
  * Playwright play-tests run in headless Chromium where pointer lock and real
  * input are awkward, so the game publishes a programmatic surface here. Each
- * sprint extends this object (input injection, player state, block get/set,
- * world/seed inspection, ...). Keeping it in one place makes the test contract
+ * sprint extends this object. Keeping it in one place makes the test contract
  * explicit.
  */
 export interface GameDebugApi {
@@ -16,6 +29,16 @@ export interface GameDebugApi {
   frameCount: number;
   /** Stats from the most recent chunk mesh build (Sprint 1+). */
   chunkStats?: { faces: number; solidBlocks: number };
+
+  // --- Sprint 2: input / player control ---
+  /** Mutable movement intent; tests set these booleans directly. */
+  input?: InputState;
+  /** Set look direction (radians). */
+  setView?: (yaw: number, pitch: number) => void;
+  /** Teleport the player to a feet-centre position and zero velocity. */
+  teleport?: (x: number, y: number, z: number) => void;
+  /** Read current player state. */
+  getPlayer?: () => PlayerSnapshot;
 }
 
 declare global {
