@@ -1,4 +1,6 @@
 import type { InputState } from '../player/Controls';
+import type { RayHit } from '../interaction/Raycast';
+import type { BlockId } from '../world/blocks/BlockType';
 
 export interface PlayerSnapshot {
   x: number;
@@ -49,6 +51,20 @@ export interface GameDebugApi {
     loadedChunks: number;
     settled: boolean;
   };
+
+  // --- Sprint 4: block interaction ---
+  /** Block id at a world coordinate. */
+  getBlock?: (x: number, y: number, z: number) => BlockId;
+  /** Raycast from the player's eye; null if nothing within reach. */
+  raycast?: () => RayHit | null;
+  /** Break the targeted block; returns whether one was removed. */
+  breakBlock?: () => boolean;
+  /** Place the active block against the targeted face; returns success. */
+  placeBlock?: () => boolean;
+  /** Select the active block for placement. */
+  setActiveBlock?: (id: BlockId) => void;
+  /** Freeze/unfreeze player physics (used by scripted interaction tests). */
+  setFrozen?: (frozen: boolean) => void;
 }
 
 declare global {

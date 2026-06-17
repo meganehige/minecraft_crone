@@ -6,6 +6,9 @@ import { World } from '../world/World';
 import { ChunkManager } from '../world/ChunkManager';
 import { Player } from '../player/Player';
 import { Controls } from '../player/Controls';
+import { BlockInteraction } from '../interaction/BlockInteraction';
+import { installCrosshair } from '../ui/crosshair';
+import { Hotbar } from '../ui/hotbar';
 
 const SIZE = Config.CHUNK_SIZE;
 const DEFAULT_SEED = 'minecraft_crone';
@@ -26,6 +29,9 @@ export class Game {
   private readonly player: Player;
   private readonly controls: Controls;
   private readonly loop: Loop;
+  private readonly interaction: BlockInteraction;
+  private readonly hotbar: Hotbar;
+  private frozen = false;
 
   constructor(canvas: HTMLCanvasElement, seed: string | number = DEFAULT_SEED) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -62,6 +68,11 @@ export class Game {
     const spawnH = this.world.generator.surfaceHeight(0, 0);
     this.player = new Player(new THREE.Vector3(0.5, spawnH + 2, 0.5));
     this.controls = new Controls(canvas, this.player);
+
+    this.interaction = new BlockInteraction(this.world, this.player);
+    installCrosshair();
+    this.hotbar = new Hotbar();
+    this.installMouse(canvas);
 
     this.loop = new Loop(
       (dt) => this.fixedUpdate(dt),
@@ -100,10 +111,37 @@ export class Game {
         loadedChunks: this.world.loadedCount,
         settled: this.manager.isSettled(),
       }),
+      getBlock: (x, y, z) => this.world.getBlock(x, y, z),
+      raycast: () => this.interaction.raycast(),
+      breakBlock: () => this.interaction.break(),
+      placeBlock: () => {
+        this.interaction.activeBlock = this.hotbar.getActive();
+        return this.interaction.place();
+      },
+      setActiveBlock: (id) => {
+        this.hotbar.setActiveBlock(id);
+        this.interaction.activeBlock = id;
+      },
+      setFrozen: (frozen) => {
+        this.frozen = frozen;
+      },
     });
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  private installMouse(canvas: HTMLCanvasElement): void {
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvas.addEventListener('mousedown', (e) => {
+      if (document.pointerLockElement !== canvas) return;
+      if (e.button === 0) {
+        this.interaction.break();
+      } else if (e.button === 2) {
+        this.interaction.activeBlock = this.hotbar.getActive();
+        this.interaction.place();
+      }
+    });
   }
 
   private detectWebglVersion(): string | null {
@@ -125,6 +163,10 @@ export class Game {
 
   private fixedUpdate(dt: number): void {
     this.manager.update(this.player.pos.x, this.player.pos.z);
+    if (this.frozen) {
+      this.player.prevPos.copy(this.player.pos);
+      return;
+    }
     this.player.fixedUpdate(dt, this.controls.input, this.world);
   }
 
