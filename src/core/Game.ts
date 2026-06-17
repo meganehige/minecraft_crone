@@ -2,20 +2,18 @@ import * as THREE from 'three';
 import { Config } from './Config';
 import { installDebugApi, type GameDebugApi } from './Debug';
 import { Loop } from './Loop';
-import { Chunk } from '../world/Chunk';
-import { BlockId } from '../world/blocks/BlockType';
-import type { BlockSource } from '../world/BlockSource';
-import { buildChunkMesh } from '../render/ChunkMesher';
-import { getMaterials } from '../render/materials';
+import { World } from '../world/World';
+import { ChunkManager } from '../world/ChunkManager';
 import { Player } from '../player/Player';
 import { Controls } from '../player/Controls';
 
 const SIZE = Config.CHUNK_SIZE;
+const DEFAULT_SEED = 'minecraft_crone';
 
 /**
- * Sprint 2 bootstrap: a single demo chunk plus a first-person player with
- * gravity, jumping and AABB collision, driven by a fixed-timestep loop with
- * interpolated rendering.
+ * Sprint 3 bootstrap: a streaming, procedurally generated multi-chunk world
+ * with a first-person player. Generation/meshing are budgeted per frame by the
+ * ChunkManager; a 3x3 spawn area is generated up-front so the player has ground.
  */
 export class Game {
   readonly renderer: THREE.WebGLRenderer;
@@ -23,33 +21,46 @@ export class Game {
   readonly camera: THREE.PerspectiveCamera;
   readonly debug: GameDebugApi;
 
-  private readonly chunk: Chunk;
-  private readonly source: BlockSource;
+  private readonly world: World;
+  private readonly manager: ChunkManager;
   private readonly player: Player;
   private readonly controls: Controls;
   private readonly loop: Loop;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, seed: string | number = DEFAULT_SEED) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(Config.SKY_COLOR);
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(Config.SKY_COLOR);
+    this.scene.fog = new THREE.Fog(Config.SKY_COLOR, SIZE * 3, SIZE * 5);
 
     this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.65);
-    const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+    const sun = new THREE.DirectionalLight(0xffffff, 0.85);
     sun.position.set(0.6, 1, 0.4);
     this.scene.add(ambient, sun);
 
-    this.chunk = this.buildDemoChunk();
-    // Single chunk at origin: world coords equal chunk-local coords.
-    this.source = { getBlock: (x, y, z) => this.chunk.getBlock(x, y, z) };
-    const chunkStats = this.addChunkMeshes(this.chunk);
+    this.world = new World(this.scene, seed);
+    this.manager = new ChunkManager(this.world);
 
-    this.player = new Player(new THREE.Vector3(SIZE / 2, 14, SIZE / 2));
+    // Pre-generate a 3x3 spawn area so the player lands on real ground.
+    this.manager.update(0.5, 0.5);
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        this.world.generateChunk(this.world.ensureChunk(dx, dz));
+      }
+    }
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        this.world.meshChunk(this.world.ensureChunk(dx, dz));
+      }
+    }
+
+    const spawnH = this.world.generator.surfaceHeight(0, 0);
+    this.player = new Player(new THREE.Vector3(0.5, spawnH + 2, 0.5));
     this.controls = new Controls(canvas, this.player);
 
     this.loop = new Loop(
@@ -61,7 +72,7 @@ export class Game {
       ready: false,
       webglVersion: this.detectWebglVersion(),
       frameCount: 0,
-      chunkStats,
+      chunkStats: this.world.lastMeshStats,
       input: this.controls.input,
       setView: (yaw, pitch) => {
         this.player.yaw = yaw;
@@ -83,48 +94,16 @@ export class Game {
         yaw: this.player.yaw,
         pitch: this.player.pitch,
       }),
+      surfaceHeight: (x, z) => this.world.generator.surfaceHeight(x, z),
+      getWorldInfo: () => ({
+        seed: this.world.generator.seed,
+        loadedChunks: this.world.loadedCount,
+        settled: this.manager.isSettled(),
+      }),
     });
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
-  }
-
-  private buildDemoChunk(): Chunk {
-    const chunk = new Chunk(0, 0);
-    const cx = (SIZE - 1) / 2;
-    const cz = (SIZE - 1) / 2;
-    for (let x = 0; x < SIZE; x++) {
-      for (let z = 0; z < SIZE; z++) {
-        const d2 = (x - cx) ** 2 + (z - cz) ** 2;
-        const h = 4 + Math.round(4 * Math.exp(-d2 / 28));
-        for (let y = 0; y <= h; y++) {
-          let id: BlockId;
-          if (y === h) id = BlockId.Grass;
-          else if (y >= h - 2) id = BlockId.Dirt;
-          else id = BlockId.Stone;
-          chunk.setBlock(x, y, z, id);
-        }
-      }
-    }
-    chunk.generated = true;
-    return chunk;
-  }
-
-  private addChunkMeshes(chunk: Chunk): { faces: number; solidBlocks: number } {
-    const materials = getMaterials();
-    const result = buildChunkMesh((x, y, z) => chunk.getBlock(x, y, z));
-    if (result.opaque) {
-      chunk.mesh = new THREE.Mesh(result.opaque, materials.opaque);
-      this.scene.add(chunk.mesh);
-    }
-    if (result.transparent) {
-      chunk.transparentMesh = new THREE.Mesh(
-        result.transparent,
-        materials.transparent,
-      );
-      this.scene.add(chunk.transparentMesh);
-    }
-    return result.stats;
   }
 
   private detectWebglVersion(): string | null {
@@ -145,15 +124,17 @@ export class Game {
   }
 
   private fixedUpdate(dt: number): void {
-    this.player.fixedUpdate(dt, this.controls.input, this.source);
+    this.manager.update(this.player.pos.x, this.player.pos.z);
+    this.player.fixedUpdate(dt, this.controls.input, this.world);
   }
 
   private readonly eye = new THREE.Vector3();
   private readonly lookAt = new THREE.Vector3();
 
   private render(alpha: number): void {
+    this.manager.processQueues();
+
     const p = this.player;
-    // Interpolate feet position between the previous and current tick.
     this.eye.set(
       THREE.MathUtils.lerp(p.prevPos.x, p.pos.x, alpha),
       THREE.MathUtils.lerp(p.prevPos.y, p.pos.y, alpha) + p.eyeHeight,
@@ -168,6 +149,7 @@ export class Game {
     this.camera.lookAt(this.lookAt);
 
     this.renderer.render(this.scene, this.camera);
+    this.debug.chunkStats = this.world.lastMeshStats;
     this.debug.frameCount += 1;
     this.debug.ready = true;
   }

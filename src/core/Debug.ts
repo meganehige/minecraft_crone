@@ -39,6 +39,16 @@ export interface GameDebugApi {
   teleport?: (x: number, y: number, z: number) => void;
   /** Read current player state. */
   getPlayer?: () => PlayerSnapshot;
+
+  // --- Sprint 3: world / terrain ---
+  /** Deterministic surface (top solid) height for a world column. */
+  surfaceHeight?: (x: number, z: number) => number;
+  /** World streaming info. */
+  getWorldInfo?: () => {
+    seed: string | number;
+    loadedChunks: number;
+    settled: boolean;
+  };
 }
 
 declare global {
