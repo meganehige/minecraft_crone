@@ -1,0 +1,6 @@
+# Node / build
+node_modules/
+dist/
+
+# Playwright MCP runtime output
+.playwright-mcp/
