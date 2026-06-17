@@ -14,6 +14,8 @@ export interface GameDebugApi {
   webglVersion: string | null;
   /** Frames rendered so far (sanity signal that the render loop is alive). */
   frameCount: number;
+  /** Stats from the most recent chunk mesh build (Sprint 1+). */
+  chunkStats?: { faces: number; solidBlocks: number };
 }
 
 declare global {
