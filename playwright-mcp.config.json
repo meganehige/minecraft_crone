@@ -1,0 +1,15 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "launchOptions": {
+      "executablePath": "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+      "args": [
+        "--no-sandbox",
+        "--use-gl=angle",
+        "--use-angle=swiftshader",
+        "--enable-unsafe-swiftshader",
+        "--ignore-gpu-blocklist"
+      ]
+    }
+  }
+}

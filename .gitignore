@@ -1,0 +1,8 @@
+# Node / build
+node_modules/
+dist/
+
+# Playwright
+.playwright-mcp/
+test-results/
+playwright-report/

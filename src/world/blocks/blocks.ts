@@ -1,0 +1,78 @@
+import { Tile } from '../../render/atlas';
+import { BlockId, type BlockType } from './BlockType';
+
+/** Block definitions indexed by BlockId. Air is index 0. */
+export const BLOCKS: BlockType[] = [
+  {
+    id: BlockId.Air,
+    name: 'air',
+    solid: false,
+    transparent: true,
+    emitsLight: 0,
+    tiles: { top: -1, bottom: -1, side: -1 },
+    renderLayer: 'opaque',
+  },
+  {
+    id: BlockId.Stone,
+    name: 'stone',
+    solid: true,
+    transparent: false,
+    emitsLight: 0,
+    tiles: { top: Tile.Stone, bottom: Tile.Stone, side: Tile.Stone },
+    renderLayer: 'opaque',
+  },
+  {
+    id: BlockId.Dirt,
+    name: 'dirt',
+    solid: true,
+    transparent: false,
+    emitsLight: 0,
+    tiles: { top: Tile.Dirt, bottom: Tile.Dirt, side: Tile.Dirt },
+    renderLayer: 'opaque',
+  },
+  {
+    id: BlockId.Grass,
+    name: 'grass',
+    solid: true,
+    transparent: false,
+    emitsLight: 0,
+    tiles: { top: Tile.GrassTop, bottom: Tile.Dirt, side: Tile.GrassSide },
+    renderLayer: 'opaque',
+  },
+  {
+    id: BlockId.Sand,
+    name: 'sand',
+    solid: true,
+    transparent: false,
+    emitsLight: 0,
+    tiles: { top: Tile.Sand, bottom: Tile.Sand, side: Tile.Sand },
+    renderLayer: 'opaque',
+  },
+  {
+    id: BlockId.Water,
+    name: 'water',
+    solid: false,
+    transparent: true,
+    emitsLight: 0,
+    tiles: { top: Tile.Water, bottom: Tile.Water, side: Tile.Water },
+    renderLayer: 'transparent',
+  },
+  {
+    id: BlockId.Wood,
+    name: 'wood',
+    solid: true,
+    transparent: false,
+    emitsLight: 0,
+    tiles: { top: Tile.WoodTop, bottom: Tile.WoodTop, side: Tile.WoodSide },
+    renderLayer: 'opaque',
+  },
+  {
+    id: BlockId.Leaves,
+    name: 'leaves',
+    solid: true,
+    transparent: true,
+    emitsLight: 0,
+    tiles: { top: Tile.Leaves, bottom: Tile.Leaves, side: Tile.Leaves },
+    renderLayer: 'transparent',
+  },
+];
