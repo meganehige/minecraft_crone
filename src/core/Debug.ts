@@ -1,6 +1,8 @@
 import type { InputState } from '../player/Controls';
 import type { RayHit } from '../interaction/Raycast';
 import type { BlockId } from '../world/blocks/BlockType';
+import type { MiningTarget } from '../interaction/Mining';
+import type { SoundCounts } from '../audio/SoundManager';
 
 export interface PlayerSnapshot {
   x: number;
@@ -81,6 +83,18 @@ export interface GameDebugApi {
   getDaylight?: () => number;
   /** Average framebuffer luminance in [0,1]. */
   sampleBrightness?: () => number;
+
+  // --- Sprint 9: mining & sound ---
+  /** Start/stop timed mining of the targeted block. */
+  setMining?: (active: boolean) => void;
+  /** Current mining progress (0..1), cracking stage (0..9, -1 idle), target. */
+  getMining?: () => {
+    progress: number;
+    stage: number;
+    target: MiningTarget | null;
+  };
+  /** Cumulative counts of played sound events. */
+  getSoundCounts?: () => SoundCounts;
 }
 
 declare global {

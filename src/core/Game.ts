@@ -8,9 +8,14 @@ import { Player } from '../player/Player';
 import { Controls } from '../player/Controls';
 import { TouchControls, isTouchDevice } from '../player/TouchControls';
 import { BlockInteraction } from '../interaction/BlockInteraction';
+import { MiningController } from '../interaction/Mining';
 import { installCrosshair } from '../ui/crosshair';
 import { Hotbar } from '../ui/hotbar';
 import { getMaterials } from '../render/materials';
+import { BreakOverlay } from '../render/BreakOverlay';
+import { SoundManager } from '../audio/SoundManager';
+import { BlockRegistry } from '../world/blocks/BlockRegistry';
+import { BlockId } from '../world/blocks/BlockType';
 import type { SaveManager } from '../persistence/SaveManager';
 
 const SIZE = Config.CHUNK_SIZE;
@@ -34,8 +39,12 @@ export class Game {
   private readonly loop: Loop;
   private readonly interaction: BlockInteraction;
   private readonly hotbar: Hotbar;
+  private readonly sound: SoundManager;
+  private readonly mining: MiningController;
+  private readonly breakOverlay: BreakOverlay;
   private readonly save?: SaveManager;
   private frozen = false;
+  private stepDistance = 0;
 
   // Day/night cycle.
   private daylight = 1;
@@ -88,6 +97,16 @@ export class Game {
     this.controls = new Controls(canvas, this.player);
 
     this.interaction = new BlockInteraction(this.world, this.player);
+    this.sound = new SoundManager();
+    this.mining = new MiningController(
+      this.world,
+      () => this.interaction.raycast(),
+      this.sound,
+      () => {
+        /* drops hook (Sprint 10) */
+      },
+    );
+    this.breakOverlay = new BreakOverlay(this.scene);
     installCrosshair();
     this.hotbar = new Hotbar();
     this.installMouse(canvas);
@@ -96,10 +115,14 @@ export class Game {
       new TouchControls({
         input: this.controls.input,
         player: this.player,
-        onBreak: () => this.interaction.break(),
+        onBreakStart: () => {
+          this.sound.resume();
+          this.mining.setActive(true);
+        },
+        onBreakStop: () => this.mining.setActive(false),
         onPlace: () => {
-          this.interaction.activeBlock = this.hotbar.getActive();
-          this.interaction.place();
+          this.sound.resume();
+          this.doPlace();
         },
       });
     }
@@ -146,10 +169,7 @@ export class Game {
       setBlock: (x, y, z, id) => this.world.setBlock(x, y, z, id),
       raycast: () => this.interaction.raycast(),
       breakBlock: () => this.interaction.break(),
-      placeBlock: () => {
-        this.interaction.activeBlock = this.hotbar.getActive();
-        return this.interaction.place();
-      },
+      placeBlock: () => this.doPlace(),
       setActiveBlock: (id) => {
         this.hotbar.setActiveBlock(id);
         this.interaction.activeBlock = id;
@@ -157,6 +177,16 @@ export class Game {
       setFrozen: (frozen) => {
         this.frozen = frozen;
       },
+      setMining: (active) => {
+        this.sound.resume();
+        this.mining.setActive(active);
+      },
+      getMining: () => ({
+        progress: this.mining.progress,
+        stage: this.mining.getStage(),
+        target: this.mining.getTarget(),
+      }),
+      getSoundCounts: () => this.sound.getCounts(),
       save: () => this.save?.flush() ?? Promise.resolve(),
       setDaylight: (v) => {
         this.daylightOverride = Math.max(0, Math.min(1, v));
@@ -177,12 +207,31 @@ export class Game {
     canvas.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement !== canvas) return;
       if (e.button === 0) {
-        this.interaction.break();
+        this.sound.resume();
+        this.mining.setActive(true); // hold to mine
       } else if (e.button === 2) {
-        this.interaction.activeBlock = this.hotbar.getActive();
-        this.interaction.place();
+        this.sound.resume();
+        this.doPlace();
       }
     });
+    const stopMining = () => this.mining.setActive(false);
+    canvas.addEventListener('mouseup', (e) => {
+      if (e.button === 0) stopMining();
+    });
+    window.addEventListener('blur', stopMining);
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement !== canvas) stopMining();
+    });
+  }
+
+  /** Place the active hotbar block and play its place sound on success. */
+  private doPlace(): boolean {
+    this.interaction.activeBlock = this.hotbar.getActive();
+    const placed = this.interaction.place();
+    if (placed) {
+      this.sound.playPlace(BlockRegistry.getSoundGroup(this.interaction.activeBlock));
+    }
+    return placed;
   }
 
   private detectWebglVersion(): string | null {
@@ -204,11 +253,32 @@ export class Game {
 
   private fixedUpdate(dt: number): void {
     this.manager.update(this.player.pos.x, this.player.pos.z);
+    // Mining runs even when physics is frozen (used by scripted tests).
+    this.mining.update(dt);
     if (this.frozen) {
       this.player.prevPos.copy(this.player.pos);
       return;
     }
+    const before = this.player.pos.clone();
     this.player.fixedUpdate(dt, this.controls.input, this.world);
+    this.updateFootsteps(before);
+  }
+
+  /** Play a step sound for the block underfoot after travelling ~2 blocks. */
+  private updateFootsteps(before: THREE.Vector3): void {
+    if (!this.player.onGround) return;
+    const dx = this.player.pos.x - before.x;
+    const dz = this.player.pos.z - before.z;
+    this.stepDistance += Math.hypot(dx, dz);
+    if (this.stepDistance < 2.0) return;
+    this.stepDistance = 0;
+    const fx = Math.floor(this.player.pos.x);
+    const fy = Math.floor(this.player.pos.y - 0.1);
+    const fz = Math.floor(this.player.pos.z);
+    const under = this.world.getBlock(fx, fy, fz);
+    if (under !== BlockId.Air) {
+      this.sound.playStep(BlockRegistry.getSoundGroup(under));
+    }
   }
 
   private readonly eye = new THREE.Vector3();
@@ -281,6 +351,8 @@ export class Game {
     this.camera.position.copy(this.eye);
     this.lookAt.set(this.eye.x + dirX, this.eye.y + dirY, this.eye.z + dirZ);
     this.camera.lookAt(this.lookAt);
+
+    this.breakOverlay.update(this.mining.getTarget(), this.mining.getStage());
 
     this.renderer.render(this.scene, this.camera);
     this.debug.chunkStats = this.world.lastMeshStats;

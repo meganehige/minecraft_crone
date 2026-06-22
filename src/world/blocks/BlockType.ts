@@ -12,6 +12,15 @@ export enum BlockId {
 
 export type RenderLayer = 'opaque' | 'transparent';
 
+/** Material sound family for break/place/step audio. */
+export type SoundGroup =
+  | 'stone'
+  | 'dirt'
+  | 'grass'
+  | 'sand'
+  | 'wood'
+  | 'leaves';
+
 export interface BlockType {
   id: BlockId;
   name: string;
@@ -24,4 +33,11 @@ export interface BlockType {
   /** Atlas tile indices per face group. */
   tiles: { top: number; bottom: number; side: number };
   renderLayer: RenderLayer;
+  /** Break difficulty; base break seconds = hardness * 1.5. -1 = unbreakable. */
+  hardness: number;
+  /** Material family for sounds. */
+  soundGroup: SoundGroup;
+  /** Block id dropped when broken (defaults handled in the registry). */
+  drops: BlockId;
 }
+

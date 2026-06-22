@@ -9,7 +9,10 @@ const JOY_RADIUS = 48;
 export interface TouchHooks {
   input: InputState;
   player: Player;
-  onBreak: () => void;
+  /** Begin holding the break (mine) button. */
+  onBreakStart: () => void;
+  /** Release the break (mine) button. */
+  onBreakStop: () => void;
   onPlace: () => void;
 }
 
@@ -70,7 +73,15 @@ export class TouchControls {
     this.knob.dataset.testid = 'touch-joystick';
     this.root.appendChild(this.knob);
 
-    this.root.appendChild(this.makeButton('btn-break', '⛏', '88px', () => this.hooks.onBreak()));
+    this.root.appendChild(
+      this.makeHoldButton(
+        'btn-break',
+        '⛏',
+        '88px',
+        () => this.hooks.onBreakStart(),
+        () => this.hooks.onBreakStop(),
+      ),
+    );
     this.root.appendChild(this.makeButton('btn-place', '⬛', '20px', () => this.hooks.onPlace()));
     this.root.appendChild(this.makeJumpButton());
 
@@ -111,6 +122,29 @@ export class TouchControls {
       e.stopPropagation();
       action();
     });
+    return b;
+  }
+
+  /** A button that fires onDown while pressed and onUp on release. */
+  private makeHoldButton(
+    id: string,
+    label: string,
+    rightOffset: string,
+    onDown: () => void,
+    onUp: () => void,
+  ): HTMLDivElement {
+    const b = this.makeButton(id, label, rightOffset, () => {});
+    // Replace the tap handler set by makeButton with press/release semantics.
+    b.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      onDown();
+    });
+    b.addEventListener('pointerup', (e) => {
+      e.stopPropagation();
+      onUp();
+    });
+    b.addEventListener('pointerleave', () => onUp());
+    b.addEventListener('pointercancel', () => onUp());
     return b;
   }
 

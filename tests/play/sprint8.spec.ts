@@ -30,7 +30,7 @@ test.describe('Sprint 8: mobile touch controls', () => {
     expect(errors).toEqual([]);
   });
 
-  test('break button removes the targeted block', async ({ page }) => {
+  test('holding the break button mines the targeted block', async ({ page }) => {
     await boot(page);
     const h = await page.evaluate(() => {
       const sh = window.__game.surfaceHeight!(8, 8);
@@ -41,12 +41,22 @@ test.describe('Sprint 8: mobile touch controls', () => {
     });
 
     expect(await getBlock(page, 8, h, 8)).not.toBe(AIR);
+    // Press and hold the break button -> timed mining.
     await page.dispatchEvent('[data-testid="btn-break"]', 'pointerdown', {
       pointerId: 1,
       button: 0,
       bubbles: true,
     });
-    expect(await getBlock(page, 8, h, 8)).toBe(AIR);
+    await page.waitForFunction(
+      (y) => window.__game.getBlock!(8, y, 8) === 0,
+      h,
+      { timeout: 8_000 },
+    );
+    await page.dispatchEvent('[data-testid="btn-break"]', 'pointerup', {
+      pointerId: 1,
+      button: 0,
+      bubbles: true,
+    });
   });
 
   test('jump button makes the player jump', async ({ page }) => {

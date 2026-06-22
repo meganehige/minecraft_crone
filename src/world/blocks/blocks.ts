@@ -11,6 +11,9 @@ export const BLOCKS: BlockType[] = [
     emitsLight: 0,
     tiles: { top: -1, bottom: -1, side: -1 },
     renderLayer: 'opaque',
+    hardness: 0,
+    soundGroup: 'stone',
+    drops: BlockId.Air,
   },
   {
     id: BlockId.Stone,
@@ -20,6 +23,9 @@ export const BLOCKS: BlockType[] = [
     emitsLight: 0,
     tiles: { top: Tile.Stone, bottom: Tile.Stone, side: Tile.Stone },
     renderLayer: 'opaque',
+    hardness: 1.5,
+    soundGroup: 'stone',
+    drops: BlockId.Stone,
   },
   {
     id: BlockId.Dirt,
@@ -29,6 +35,9 @@ export const BLOCKS: BlockType[] = [
     emitsLight: 0,
     tiles: { top: Tile.Dirt, bottom: Tile.Dirt, side: Tile.Dirt },
     renderLayer: 'opaque',
+    hardness: 0.5,
+    soundGroup: 'dirt',
+    drops: BlockId.Dirt,
   },
   {
     id: BlockId.Grass,
@@ -38,6 +47,9 @@ export const BLOCKS: BlockType[] = [
     emitsLight: 0,
     tiles: { top: Tile.GrassTop, bottom: Tile.Dirt, side: Tile.GrassSide },
     renderLayer: 'opaque',
+    hardness: 0.6,
+    soundGroup: 'grass',
+    drops: BlockId.Dirt,
   },
   {
     id: BlockId.Sand,
@@ -47,6 +59,9 @@ export const BLOCKS: BlockType[] = [
     emitsLight: 0,
     tiles: { top: Tile.Sand, bottom: Tile.Sand, side: Tile.Sand },
     renderLayer: 'opaque',
+    hardness: 0.5,
+    soundGroup: 'sand',
+    drops: BlockId.Sand,
   },
   {
     id: BlockId.Water,
@@ -56,6 +71,9 @@ export const BLOCKS: BlockType[] = [
     emitsLight: 0,
     tiles: { top: Tile.Water, bottom: Tile.Water, side: Tile.Water },
     renderLayer: 'transparent',
+    hardness: -1,
+    soundGroup: 'stone',
+    drops: BlockId.Air,
   },
   {
     id: BlockId.Wood,
@@ -65,6 +83,9 @@ export const BLOCKS: BlockType[] = [
     emitsLight: 0,
     tiles: { top: Tile.WoodTop, bottom: Tile.WoodTop, side: Tile.WoodSide },
     renderLayer: 'opaque',
+    hardness: 2.0,
+    soundGroup: 'wood',
+    drops: BlockId.Wood,
   },
   {
     id: BlockId.Leaves,
@@ -74,5 +95,8 @@ export const BLOCKS: BlockType[] = [
     emitsLight: 0,
     tiles: { top: Tile.Leaves, bottom: Tile.Leaves, side: Tile.Leaves },
     renderLayer: 'transparent',
+    hardness: 0.2,
+    soundGroup: 'leaves',
+    drops: BlockId.Leaves,
   },
 ];
