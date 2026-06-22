@@ -17,17 +17,21 @@ async function boot(page: Page): Promise<void> {
   });
 }
 
-// Put a block at (8,h,8), stand at the block centre above it, look straight
-// down, and freeze the player. Returns the surface height h.
+// Build a dry, isolated platform high up (no water nearby), put the target
+// block on it, aim straight down and freeze. Returns the target's Y.
+const PLATFORM_Y = 100;
 async function aimAt(page: Page, id: number): Promise<number> {
-  return page.evaluate((blockId) => {
-    const h = window.__game.surfaceHeight!(8, 8);
-    window.__game.setBlock!(8, h, 8, blockId);
-    window.__game.teleport!(8.5, h + 3, 8.5);
-    window.__game.setView!(0, -Math.PI / 2 + 0.0001);
-    window.__game.setFrozen!(true);
-    return h;
-  }, id);
+  return page.evaluate(
+    ([py, blockId]) => {
+      window.__game.setBlock!(8, py - 1, 8, 1); // stone floor
+      window.__game.setBlock!(8, py, 8, blockId);
+      window.__game.teleport!(8.5, py + 3, 8.5);
+      window.__game.setView!(0, -Math.PI / 2 + 0.0001);
+      window.__game.setFrozen!(true);
+      return py;
+    },
+    [PLATFORM_Y, id] as const,
+  );
 }
 
 test.describe('Sprint 9: timed mining, cracks & sound', () => {

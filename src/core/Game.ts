@@ -4,6 +4,8 @@ import { installDebugApi, type GameDebugApi } from './Debug';
 import { Loop } from './Loop';
 import { World } from '../world/World';
 import { ChunkManager } from '../world/ChunkManager';
+import { FallingBlocks } from '../world/FallingBlocks';
+import { FluidSimulator } from '../world/FluidSimulator';
 import { Player } from '../player/Player';
 import { Survival } from '../player/Survival';
 import { Controls } from '../player/Controls';
@@ -41,6 +43,8 @@ export class Game {
 
   private readonly world: World;
   private readonly manager: ChunkManager;
+  private readonly falling: FallingBlocks;
+  private readonly fluids: FluidSimulator;
   private readonly player: Player;
   private readonly controls: Controls;
   private readonly loop: Loop;
@@ -92,6 +96,12 @@ export class Game {
     // lights are needed (materials are MeshBasic).
     this.world = new World(this.scene, seed, save);
     this.manager = new ChunkManager(this.world);
+    this.falling = new FallingBlocks(this.world);
+    this.fluids = new FluidSimulator(this.world);
+    this.world.onBlockChange = (x, y, z) => {
+      this.falling.mark(x, y, z);
+      this.fluids.mark(x, y, z);
+    };
 
     // Pre-generate a 3x3 spawn area so the player lands on real ground.
     this.manager.update(0.5, 0.5);
@@ -368,6 +378,8 @@ export class Game {
     if (this.furnaces.tick() && this.furnaceScreen.isOpen()) {
       this.furnaceScreen.refresh();
     }
+    this.falling.tick();
+    this.fluids.tick();
     if (this.frozen) {
       this.player.prevPos.copy(this.player.pos);
       return;

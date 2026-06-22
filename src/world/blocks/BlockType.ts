@@ -13,6 +13,7 @@ export enum BlockId {
   CraftingTable = 10,
   Furnace = 11,
   Lava = 12,
+  Gravel = 13,
 }
 
 export type RenderLayer = 'opaque' | 'transparent';
@@ -50,5 +51,9 @@ export interface BlockType {
   requiresTool: boolean;
   /** Minimum tool tier (1=wood..4=diamond) needed to harvest; 0 = hand ok. */
   minTier: number;
+  /** Falls when unsupported (sand, gravel). */
+  gravity: boolean;
+  /** Flows (water, lava). */
+  fluid: boolean;
 }
 

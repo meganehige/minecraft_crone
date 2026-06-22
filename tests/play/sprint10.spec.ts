@@ -23,14 +23,15 @@ test.describe('Sprint 10: drops, item entities & inventory', () => {
     page.on('pageerror', (e) => errors.push(e.message));
     await boot(page);
 
-    // Place dirt (drops itself), aim down, mine it -> a drop entity should spawn.
+    // Dry platform high up (no water): dirt on a stone floor; aim down and mine.
     const h = await page.evaluate(() => {
-      const sh = window.__game.surfaceHeight!(8, 8);
-      window.__game.setBlock!(8, sh, 8, 2); // dirt
-      window.__game.teleport!(8.5, sh + 3, 8.5);
+      const py = 100;
+      window.__game.setBlock!(8, py - 1, 8, 1); // stone floor
+      window.__game.setBlock!(8, py, 8, 2); // dirt (drops itself)
+      window.__game.teleport!(8.5, py + 3, 8.5);
       window.__game.setView!(0, -Math.PI / 2 + 0.0001);
       window.__game.setFrozen!(true);
-      return sh;
+      return py;
     });
 
     await page.evaluate(() => window.__game.setMining!(true));

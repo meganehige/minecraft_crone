@@ -25,11 +25,13 @@ test.describe('Sprint 6: persistence (save/load)', () => {
     await page.goto('/');
     await boot(page);
 
-    // Make two edits in the spawn chunk: remove a surface block and place stone
-    // a couple of blocks above the surface.
+    // Make two edits on a dry high platform (away from water so nothing flows
+    // into the broken cell): place a stone then break it, and place a stone in
+    // the air nearby.
     const ref = await page.evaluate(() => {
-      const h = window.__game.surfaceHeight!(3, 3);
-      window.__game.setBlock!(3, h, 3, 0); // break surface
+      const h = 100;
+      window.__game.setBlock!(3, h, 3, 1); // place then...
+      window.__game.setBlock!(3, h, 3, 0); // ...break it (net: air)
       window.__game.setBlock!(5, h + 2, 5, 1); // place stone in the air
       return { h };
     });

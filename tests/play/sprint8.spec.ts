@@ -32,12 +32,15 @@ test.describe('Sprint 8: mobile touch controls', () => {
 
   test('holding the break button mines the targeted block', async ({ page }) => {
     await boot(page);
+    // Dry platform high up so no water flows into the mined cell.
     const h = await page.evaluate(() => {
-      const sh = window.__game.surfaceHeight!(8, 8);
-      window.__game.teleport!(8.5, sh + 3, 8.5);
+      const py = 100;
+      window.__game.setBlock!(8, py - 1, 8, 1); // floor
+      window.__game.setBlock!(8, py, 8, 1); // target
+      window.__game.teleport!(8.5, py + 3, 8.5);
       window.__game.setView!(0, -Math.PI / 2 + 0.0001);
       window.__game.setFrozen!(true);
-      return sh;
+      return py;
     });
 
     expect(await getBlock(page, 8, h, 8)).not.toBe(AIR);

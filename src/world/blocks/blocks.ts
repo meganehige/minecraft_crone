@@ -17,6 +17,8 @@ interface Def {
   toolType?: ToolType;
   requiresTool?: boolean;
   minTier?: number;
+  gravity?: boolean;
+  fluid?: boolean;
 }
 
 function def(d: Def): BlockType {
@@ -25,6 +27,8 @@ function def(d: Def): BlockType {
     toolType: null,
     requiresTool: false,
     minTier: 0,
+    gravity: false,
+    fluid: false,
     ...d,
   };
 }
@@ -91,6 +95,7 @@ export const BLOCKS: BlockType[] = [
     soundGroup: 'sand',
     drops: BlockId.Sand,
     toolType: 'shovel',
+    gravity: true,
   }),
   def({
     id: BlockId.Water,
@@ -102,6 +107,7 @@ export const BLOCKS: BlockType[] = [
     hardness: -1,
     soundGroup: 'stone',
     drops: BlockId.Air,
+    fluid: true,
   }),
   def({
     id: BlockId.Wood,
@@ -189,5 +195,19 @@ export const BLOCKS: BlockType[] = [
     hardness: -1,
     soundGroup: 'stone',
     drops: BlockId.Air,
+    fluid: true,
+  }),
+  def({
+    id: BlockId.Gravel,
+    name: 'gravel',
+    solid: true,
+    transparent: false,
+    tiles: { top: Tile.Gravel, bottom: Tile.Gravel, side: Tile.Gravel },
+    renderLayer: 'opaque',
+    hardness: 0.6,
+    soundGroup: 'sand',
+    drops: BlockId.Gravel,
+    toolType: 'shovel',
+    gravity: true,
   }),
 ];

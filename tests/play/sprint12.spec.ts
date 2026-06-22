@@ -19,16 +19,17 @@ async function boot(page: Page): Promise<void> {
   });
 }
 
-// Place a stone at (8,h,8), aim straight down at it, freeze. Returns h.
+// Build a dry platform high up, put a stone on it, aim down at it. Returns Y.
+const PLATFORM_Y = 100;
 async function aimStone(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const h = window.__game.surfaceHeight!(8, 8);
-    window.__game.setBlock!(8, h, 8, 1);
-    window.__game.teleport!(8.5, h + 3, 8.5);
+  return page.evaluate((py) => {
+    window.__game.setBlock!(8, py - 1, 8, 1); // floor
+    window.__game.setBlock!(8, py, 8, 1); // stone target
+    window.__game.teleport!(8.5, py + 3, 8.5);
     window.__game.setView!(0, -Math.PI / 2 + 0.0001);
     window.__game.setFrozen!(true);
-    return h;
-  });
+    return py;
+  }, PLATFORM_Y);
 }
 
 async function mineUntilGone(page: Page, h: number): Promise<number> {
