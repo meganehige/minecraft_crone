@@ -95,6 +95,22 @@ export interface GameDebugApi {
   };
   /** Cumulative counts of played sound events. */
   getSoundCounts?: () => SoundCounts;
+
+  // --- Sprint 10: items & inventory ---
+  /** Add items to the inventory; returns leftover that did not fit. */
+  giveItem?: (id: BlockId, count: number) => number;
+  /** Total count of an item across the inventory. */
+  getInventoryCount?: (id: BlockId) => number;
+  /** Item id in the selected hotbar slot, or null. */
+  getHeldItem?: () => BlockId | null;
+  /** Select a hotbar slot 0..8. */
+  selectSlot?: (index: number) => void;
+  /** Number of dropped item entities in the world. */
+  getItemEntityCount?: () => number;
+  /** Toggle the inventory screen. */
+  toggleInventory?: () => void;
+  /** Whether the inventory screen is open. */
+  isInventoryOpen?: () => boolean;
 }
 
 declare global {

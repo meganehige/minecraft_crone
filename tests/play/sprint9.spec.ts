@@ -96,7 +96,8 @@ test.describe('Sprint 9: timed mining, cracks & sound', () => {
     // Aim at the block below and place onto its top face.
     const before = await page.evaluate(() => window.__game.getSoundCounts!());
     const placed = await page.evaluate(() => {
-      window.__game.setActiveBlock!(1); // stone
+      window.__game.giveItem!(1, 5); // stone into inventory
+      window.__game.setActiveBlock!(1);
       return window.__game.placeBlock!();
     });
     expect(placed).toBe(true);

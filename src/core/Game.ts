@@ -11,6 +11,9 @@ import { BlockInteraction } from '../interaction/BlockInteraction';
 import { MiningController } from '../interaction/Mining';
 import { installCrosshair } from '../ui/crosshair';
 import { Hotbar } from '../ui/hotbar';
+import { InventoryScreen } from '../ui/InventoryScreen';
+import { Inventory } from '../inventory/Inventory';
+import { ItemEntityManager } from '../world/ItemEntityManager';
 import { getMaterials } from '../render/materials';
 import { BreakOverlay } from '../render/BreakOverlay';
 import { SoundManager } from '../audio/SoundManager';
@@ -38,7 +41,10 @@ export class Game {
   private readonly controls: Controls;
   private readonly loop: Loop;
   private readonly interaction: BlockInteraction;
+  private readonly inventory: Inventory;
   private readonly hotbar: Hotbar;
+  private readonly inventoryScreen: InventoryScreen;
+  private readonly items: ItemEntityManager;
   private readonly sound: SoundManager;
   private readonly mining: MiningController;
   private readonly breakOverlay: BreakOverlay;
@@ -98,18 +104,29 @@ export class Game {
 
     this.interaction = new BlockInteraction(this.world, this.player);
     this.sound = new SoundManager();
+    this.inventory = new Inventory();
+    this.items = new ItemEntityManager(this.scene, this.world);
     this.mining = new MiningController(
       this.world,
       () => this.interaction.raycast(),
       this.sound,
-      () => {
-        /* drops hook (Sprint 10) */
+      (x, y, z, id) => {
+        // Drop the block's item at its centre.
+        this.items.spawn(x + 0.5, y + 0.5, z + 0.5, BlockRegistry.getDrop(id), 1);
       },
     );
     this.breakOverlay = new BreakOverlay(this.scene);
     installCrosshair();
-    this.hotbar = new Hotbar();
+    this.hotbar = new Hotbar(this.inventory);
+    this.inventoryScreen = new InventoryScreen(this.inventory);
+    this.inventory.onChange = () => {
+      this.hotbar.refresh();
+      this.inventoryScreen.refresh();
+    };
     this.installMouse(canvas);
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyE') this.toggleInventory();
+    });
 
     if (isTouchDevice()) {
       new TouchControls({
@@ -187,6 +204,13 @@ export class Game {
         target: this.mining.getTarget(),
       }),
       getSoundCounts: () => this.sound.getCounts(),
+      giveItem: (id, count) => this.inventory.add(id, count),
+      getInventoryCount: (id) => this.inventory.countOf(id),
+      getHeldItem: () => this.inventory.getSelectedItem(),
+      selectSlot: (i) => this.inventory.select(i),
+      getItemEntityCount: () => this.items.count,
+      toggleInventory: () => this.toggleInventory(),
+      isInventoryOpen: () => this.inventoryScreen.isOpen(),
       save: () => this.save?.flush() ?? Promise.resolve(),
       setDaylight: (v) => {
         this.daylightOverride = Math.max(0, Math.min(1, v));
@@ -224,14 +248,22 @@ export class Game {
     });
   }
 
-  /** Place the active hotbar block and play its place sound on success. */
+  /** Place the selected hotbar block, consuming one from the inventory. */
   private doPlace(): boolean {
-    this.interaction.activeBlock = this.hotbar.getActive();
+    const held = this.inventory.getSelectedItem();
+    if (held === null) return false;
+    this.interaction.activeBlock = held;
     const placed = this.interaction.place();
     if (placed) {
-      this.sound.playPlace(BlockRegistry.getSoundGroup(this.interaction.activeBlock));
+      this.inventory.consumeOne();
+      this.sound.playPlace(BlockRegistry.getSoundGroup(held));
     }
     return placed;
+  }
+
+  private toggleInventory(): void {
+    this.inventoryScreen.toggle();
+    if (this.inventoryScreen.isOpen()) document.exitPointerLock?.();
   }
 
   private detectWebglVersion(): string | null {
@@ -253,8 +285,11 @@ export class Game {
 
   private fixedUpdate(dt: number): void {
     this.manager.update(this.player.pos.x, this.player.pos.z);
-    // Mining runs even when physics is frozen (used by scripted tests).
+    // Mining + item entities run even when physics is frozen (test-friendly).
     this.mining.update(dt);
+    this.items.update(dt, this.player.pos, (item, count) =>
+      this.inventory.add(item, count),
+    );
     if (this.frozen) {
       this.player.prevPos.copy(this.player.pos);
       return;
