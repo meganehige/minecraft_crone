@@ -5,8 +5,10 @@ import { Loop } from './Loop';
 import { World } from '../world/World';
 import { ChunkManager } from '../world/ChunkManager';
 import { Player } from '../player/Player';
+import { Survival } from '../player/Survival';
 import { Controls } from '../player/Controls';
 import { TouchControls, isTouchDevice } from '../player/TouchControls';
+import { Hud } from '../ui/Hud';
 import { BlockInteraction } from '../interaction/BlockInteraction';
 import { MiningController } from '../interaction/Mining';
 import { installCrosshair } from '../ui/crosshair';
@@ -52,6 +54,8 @@ export class Game {
   private readonly sound: SoundManager;
   private readonly mining: MiningController;
   private readonly breakOverlay: BreakOverlay;
+  private readonly survival: Survival;
+  private readonly hud: Hud;
   private readonly save?: SaveManager;
   private frozen = false;
   private stepDistance = 0;
@@ -124,7 +128,10 @@ export class Game {
         }
       },
       () => this.inventory.damageSelected(),
+      () => this.survival.creative,
     );
+    this.survival = new Survival();
+    this.hud = new Hud();
     this.breakOverlay = new BreakOverlay(this.scene);
     installCrosshair();
     this.hotbar = new Hotbar(this.inventory);
@@ -140,6 +147,8 @@ export class Game {
       if (e.code === 'KeyE') {
         if (this.furnaceScreen.isOpen()) this.furnaceScreen.close();
         else this.toggleInventory();
+      } else if (e.code === 'KeyG') {
+        this.survival.creative = !this.survival.creative;
       }
     });
 
@@ -178,6 +187,8 @@ export class Game {
         this.player.pos.set(x, y, z);
         this.player.prevPos.set(x, y, z);
         this.player.vel.set(0, 0, 0);
+        this.player.onGround = false;
+        this.player.fallDistance = 0;
       },
       getPlayer: () => ({
         x: this.player.pos.x,
@@ -240,6 +251,21 @@ export class Game {
       },
       getFurnaceOutput: (x, y, z) =>
         this.furnaces.get(`${x},${y},${z}`).output,
+      getHealth: () => this.survival.health,
+      getHunger: () => this.survival.hunger,
+      setHealth: (v) => {
+        this.survival.health = v;
+      },
+      setHunger: (v) => {
+        this.survival.hunger = v;
+        this.survival.saturation = 0;
+      },
+      damagePlayer: (n) => this.survival.damage(n),
+      isAlive: () => this.survival.alive,
+      setCreative: (c) => {
+        this.survival.creative = c;
+      },
+      isCreative: () => this.survival.creative,
       save: () => this.save?.flush() ?? Promise.resolve(),
       setDaylight: (v) => {
         this.daylightOverride = Math.max(0, Math.min(1, v));
@@ -284,7 +310,7 @@ export class Game {
     this.interaction.activeBlock = held;
     const placed = this.interaction.place();
     if (placed) {
-      this.inventory.consumeOne();
+      if (!this.survival.creative) this.inventory.consumeOne();
       this.sound.playPlace(BlockRegistry.getSoundGroup(held));
     }
     return placed;
@@ -349,6 +375,20 @@ export class Game {
     const before = this.player.pos.clone();
     this.player.fixedUpdate(dt, this.controls.input, this.world);
     this.updateFootsteps(before);
+
+    // Survival: fall damage, environment, hunger, regen, death.
+    if (this.player.justLanded > 0) this.survival.applyFall(this.player.justLanded);
+    this.survival.tick(dt, this.player, this.world);
+    if (!this.survival.alive) this.respawn();
+  }
+
+  private respawn(): void {
+    const h = this.world.generator.surfaceHeight(0, 0);
+    this.player.pos.set(0.5, h + 2, 0.5);
+    this.player.prevPos.copy(this.player.pos);
+    this.player.vel.set(0, 0, 0);
+    this.player.fallDistance = 0;
+    this.survival.reset();
   }
 
   /** Play a step sound for the block underfoot after travelling ~2 blocks. */
@@ -440,6 +480,8 @@ export class Game {
     this.camera.lookAt(this.lookAt);
 
     this.breakOverlay.update(this.mining.getTarget(), this.mining.getStage());
+
+    this.hud.update(this.survival.health, this.survival.hunger, this.survival.creative);
 
     this.renderer.render(this.scene, this.camera);
     this.debug.chunkStats = this.world.lastMeshStats;

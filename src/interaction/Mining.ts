@@ -37,6 +37,7 @@ export class MiningController {
     private readonly getHeld: () => ItemStack | null,
     private readonly onBreak: (x: number, y: number, z: number, drop: ItemId | null) => void,
     private readonly damageHeld: () => void,
+    private readonly isCreative: () => boolean = () => false,
   ) {}
 
   setActive(active: boolean): void {
@@ -52,6 +53,7 @@ export class MiningController {
 
   /** Seconds to break a block with the currently held item. */
   private breakSeconds(id: BlockId): number {
+    if (this.isCreative()) return 0.0001; // instant break in creative
     const hardness = BlockRegistry.getHardness(id);
     const tool = this.heldTool();
     const speed =
@@ -108,10 +110,14 @@ export class MiningController {
 
     if (this.progress >= 1) {
       this.sound.playBreak(BlockRegistry.getSoundGroup(id));
-      const drop = this.canHarvest(id) ? BlockRegistry.getDrop(id) : null;
+      const drop = this.isCreative()
+        ? null
+        : this.canHarvest(id)
+          ? BlockRegistry.getDrop(id)
+          : null;
       this.onBreak(this.tx, this.ty, this.tz, drop);
       this.world.setBlock(this.tx, this.ty, this.tz, BlockId.Air);
-      this.damageHeld();
+      if (!this.isCreative()) this.damageHeld();
       this.reset();
     }
   }

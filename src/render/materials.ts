@@ -139,6 +139,9 @@ function buildAtlasCanvas(): HTMLCanvasElement {
     for (let i = 3; i < 13; i++) ctx.fillRect(ox + i, oy + (15 - i), 2, 2);
   }
 
+  paintNoise(ctx, Tile.Lava, [210, 90, 20], 0.3, 31);
+  paintNoise(ctx, Tile.Gravel, [110, 105, 100], 0.4, 32);
+
   // Tool icons: a stick handle plus a head shape.
   const drawHandle = (ox: number, oy: number) => {
     ctx.fillStyle = 'rgb(120,85,45)';

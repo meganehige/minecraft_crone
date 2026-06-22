@@ -178,4 +178,16 @@ export const BLOCKS: BlockType[] = [
     requiresTool: true,
     minTier: 1,
   }),
+  def({
+    id: BlockId.Lava,
+    name: 'lava',
+    solid: false,
+    transparent: true,
+    emitsLight: 15,
+    tiles: { top: Tile.Lava, bottom: Tile.Lava, side: Tile.Lava },
+    renderLayer: 'transparent',
+    hardness: -1,
+    soundGroup: 'stone',
+    drops: BlockId.Air,
+  }),
 ];

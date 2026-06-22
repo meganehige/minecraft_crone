@@ -12,6 +12,7 @@ export enum BlockId {
   Cobblestone = 9,
   CraftingTable = 10,
   Furnace = 11,
+  Lava = 12,
 }
 
 export type RenderLayer = 'opaque' | 'transparent';

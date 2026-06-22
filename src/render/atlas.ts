@@ -33,6 +33,8 @@ export const Tile = {
   Pickaxe: 17,
   Axe: 18,
   Shovel: 19,
+  Lava: 20,
+  Gravel: 21,
 } as const;
 
 /**

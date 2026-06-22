@@ -143,6 +143,16 @@ export interface GameDebugApi {
     y: number,
     z: number,
   ) => { item: number; count: number } | null;
+
+  // --- Sprint 13: survival ---
+  getHealth?: () => number;
+  getHunger?: () => number;
+  setHealth?: (v: number) => void;
+  setHunger?: (v: number) => void;
+  damagePlayer?: (n: number) => void;
+  isAlive?: () => boolean;
+  setCreative?: (creative: boolean) => void;
+  isCreative?: () => boolean;
 }
 
 declare global {
