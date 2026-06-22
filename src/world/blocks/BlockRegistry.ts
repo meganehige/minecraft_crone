@@ -30,4 +30,13 @@ export const BlockRegistry = {
   getDrop(id: BlockId): BlockId {
     return BLOCKS[id]?.drops ?? id;
   },
+  getToolType(id: BlockId): 'pickaxe' | 'axe' | 'shovel' | null {
+    return BLOCKS[id]?.toolType ?? null;
+  },
+  requiresTool(id: BlockId): boolean {
+    return BLOCKS[id]?.requiresTool ?? false;
+  },
+  getMinTier(id: BlockId): number {
+    return BLOCKS[id]?.minTier ?? 0;
+  },
 };

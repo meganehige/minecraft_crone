@@ -1,4 +1,4 @@
-import type { ItemId } from './items';
+import { ItemRegistry, type ItemId } from './items';
 import { matchRecipe } from '../crafting/recipes';
 
 export type { ItemId };
@@ -6,6 +6,14 @@ export type { ItemId };
 export interface ItemStack {
   item: ItemId;
   count: number;
+  /** Remaining durability for tools; undefined for non-tools. */
+  durability?: number;
+}
+
+/** Build a fresh stack, initialising tool durability. */
+export function freshStack(item: ItemId, count: number): ItemStack {
+  const tool = ItemRegistry.tool(item);
+  return tool ? { item, count, durability: tool.maxDurability } : { item, count };
 }
 
 export const HOTBAR_SIZE = 9;
@@ -32,12 +40,13 @@ export class Inventory {
 
   /** Add items, filling existing stacks then empty slots. Returns leftover. */
   add(item: ItemId, count: number): number {
+    const max = ItemRegistry.maxStack(item);
     let remaining = count;
-    // Top up existing stacks first.
+    // Top up existing stacks first (no-op for non-stacking tools).
     for (let i = 0; i < TOTAL_SLOTS && remaining > 0; i++) {
       const s = this.slots[i];
-      if (s && s.item === item && s.count < STACK_MAX) {
-        const room = STACK_MAX - s.count;
+      if (s && s.item === item && s.count < max) {
+        const room = max - s.count;
         const take = Math.min(room, remaining);
         s.count += take;
         remaining -= take;
@@ -46,13 +55,27 @@ export class Inventory {
     // Then empty slots.
     for (let i = 0; i < TOTAL_SLOTS && remaining > 0; i++) {
       if (!this.slots[i]) {
-        const take = Math.min(STACK_MAX, remaining);
-        this.slots[i] = { item, count: take };
+        const take = Math.min(max, remaining);
+        this.slots[i] = freshStack(item, take);
         remaining -= take;
       }
     }
     if (remaining !== count) this.changed();
     return remaining;
+  }
+
+  /** Damage the selected tool by one use; removes it if it breaks. Returns broke. */
+  damageSelected(): boolean {
+    const s = this.slots[this.selected];
+    if (!s || s.durability === undefined) return false;
+    s.durability -= 1;
+    if (s.durability <= 0) {
+      this.slots[this.selected] = null;
+      this.changed();
+      return true;
+    }
+    this.changed();
+    return false;
   }
 
   getSelectedItem(): ItemId | null {
@@ -185,9 +208,13 @@ export class Inventory {
   takeCraftOutput(): boolean {
     const out = this.getCraftOutput();
     if (!out) return false;
+    const isTool = ItemRegistry.tool(out.item) !== undefined;
     if (this.cursor) {
-      if (this.cursor.item !== out.item) return false;
-      if (this.cursor.count + out.count > STACK_MAX) return false;
+      // Tools never stack onto the cursor.
+      if (isTool || this.cursor.item !== out.item) return false;
+      if (this.cursor.count + out.count > ItemRegistry.maxStack(out.item)) {
+        return false;
+      }
     }
     const n = this.craftSize * this.craftSize;
     for (let i = 0; i < n; i++) {
@@ -198,7 +225,7 @@ export class Inventory {
       }
     }
     if (this.cursor) this.cursor.count += out.count;
-    else this.cursor = { item: out.item, count: out.count };
+    else this.cursor = freshStack(out.item, out.count);
     this.changed();
     return true;
   }

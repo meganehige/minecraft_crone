@@ -26,6 +26,47 @@ type Recipe = ShapelessRecipe | ShapedRecipe;
 const W = BlockId.Wood;
 const P = BlockId.Planks;
 const C = BlockId.Cobblestone;
+const S = Item.Stick;
+
+/** Tool recipes per material tier (wood=planks, stone=cobble, iron=ingot). */
+function toolRecipes(): ShapedRecipe[] {
+  const tiers: { mat: ItemId; pick: ItemId; axe: ItemId; shovel: ItemId }[] = [
+    { mat: P, pick: Item.WoodPickaxe, axe: Item.WoodAxe, shovel: Item.WoodShovel },
+    { mat: C, pick: Item.StonePickaxe, axe: Item.StoneAxe, shovel: Item.StoneShovel },
+    {
+      mat: Item.IronIngot,
+      pick: Item.IronPickaxe,
+      axe: Item.IronAxe,
+      shovel: Item.IronShovel,
+    },
+  ];
+  const out: ShapedRecipe[] = [];
+  for (const t of tiers) {
+    const M = t.mat;
+    out.push({
+      kind: 'shaped',
+      width: 3,
+      height: 3,
+      cells: [M, M, M, null, S, null, null, S, null],
+      output: { item: t.pick, count: 1 },
+    });
+    out.push({
+      kind: 'shaped',
+      width: 2,
+      height: 3,
+      cells: [M, M, M, S, null, S],
+      output: { item: t.axe, count: 1 },
+    });
+    out.push({
+      kind: 'shaped',
+      width: 1,
+      height: 3,
+      cells: [M, S, S],
+      output: { item: t.shovel, count: 1 },
+    });
+  }
+  return out;
+}
 
 export const RECIPES: Recipe[] = [
   // 1 log -> 4 planks
@@ -54,6 +95,7 @@ export const RECIPES: Recipe[] = [
     cells: [C, C, C, C, null, C, C, C, C],
     output: { item: BlockId.Furnace, count: 1 },
   },
+  ...toolRecipes(),
 ];
 
 /** Crop the grid to the bounding box of its non-null cells. */

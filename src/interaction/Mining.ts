@@ -2,6 +2,8 @@ import type { SoundManager } from '../audio/SoundManager';
 import { BlockRegistry } from '../world/blocks/BlockRegistry';
 import { BlockId } from '../world/blocks/BlockType';
 import type { World } from '../world/World';
+import type { ItemStack, ItemId } from '../inventory/Inventory';
+import { ItemRegistry } from '../inventory/items';
 import type { RayHit } from './Raycast';
 
 const DIG_SOUND_INTERVAL = 0.18; // seconds between mining "hit" sounds
@@ -13,10 +15,10 @@ export interface MiningTarget {
 }
 
 /**
- * Timed block breaking (hold to mine). Each tick adds progress to the targeted
- * block based on its hardness (break seconds = hardness * 1.5); the cracking
- * overlay reads the 0..9 stage. On completion it fires the break sound, invokes
- * `onBreak` (drops hook for a later sprint), then clears the block.
+ * Timed block breaking (hold to mine). Break time depends on hardness and the
+ * held tool (correct tool tier speeds it up); whether the block drops depends on
+ * "requires tool" + tier rules. Breaking consumes one durability from the held
+ * tool. The cracking overlay reads the 0..9 stage.
  */
 export class MiningController {
   progress = 0; // 0..1 on the current target
@@ -32,7 +34,9 @@ export class MiningController {
     private readonly world: World,
     private readonly getHit: () => RayHit | null,
     private readonly sound: SoundManager,
-    private readonly onBreak: (x: number, y: number, z: number, id: BlockId) => void,
+    private readonly getHeld: () => ItemStack | null,
+    private readonly onBreak: (x: number, y: number, z: number, drop: ItemId | null) => void,
+    private readonly damageHeld: () => void,
   ) {}
 
   setActive(active: boolean): void {
@@ -44,6 +48,30 @@ export class MiningController {
     this.progress = 0;
     this.targetKey = null;
     this.digTimer = 0;
+  }
+
+  /** Seconds to break a block with the currently held item. */
+  private breakSeconds(id: BlockId): number {
+    const hardness = BlockRegistry.getHardness(id);
+    const tool = this.heldTool();
+    const speed =
+      tool && tool.type === BlockRegistry.getToolType(id) ? tool.multiplier : 1;
+    return Math.max(0.05, (hardness * 1.5) / speed);
+  }
+
+  private heldTool() {
+    const held = this.getHeld();
+    return held ? ItemRegistry.tool(held.item) : undefined;
+  }
+
+  private canHarvest(id: BlockId): boolean {
+    if (!BlockRegistry.requiresTool(id)) return true;
+    const tool = this.heldTool();
+    return (
+      !!tool &&
+      tool.type === BlockRegistry.getToolType(id) &&
+      tool.tier >= BlockRegistry.getMinTier(id)
+    );
   }
 
   update(dt: number): void {
@@ -70,8 +98,7 @@ export class MiningController {
       this.digTimer = 0;
     }
 
-    const breakTime = Math.max(0.05, BlockRegistry.getHardness(id) * 1.5);
-    this.progress += dt / breakTime;
+    this.progress += dt / this.breakSeconds(id);
 
     this.digTimer -= dt;
     if (this.digTimer <= 0) {
@@ -81,8 +108,10 @@ export class MiningController {
 
     if (this.progress >= 1) {
       this.sound.playBreak(BlockRegistry.getSoundGroup(id));
-      this.onBreak(this.tx, this.ty, this.tz, id);
+      const drop = this.canHarvest(id) ? BlockRegistry.getDrop(id) : null;
+      this.onBreak(this.tx, this.ty, this.tz, drop);
       this.world.setBlock(this.tx, this.ty, this.tz, BlockId.Air);
+      this.damageHeld();
       this.reset();
     }
   }

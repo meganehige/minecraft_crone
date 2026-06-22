@@ -67,8 +67,8 @@ export interface GameDebugApi {
   breakBlock?: () => boolean;
   /** Place the active block against the targeted face; returns success. */
   placeBlock?: () => boolean;
-  /** Select the active block for placement. */
-  setActiveBlock?: (id: BlockId) => void;
+  /** Select the active item/block for placement (selects a hotbar slot). */
+  setActiveBlock?: (id: number) => void;
   /** Freeze/unfreeze player physics (used by scripted interaction tests). */
   setFrozen?: (frozen: boolean) => void;
 
@@ -98,11 +98,13 @@ export interface GameDebugApi {
 
   // --- Sprint 10: items & inventory ---
   /** Add items to the inventory; returns leftover that did not fit. */
-  giveItem?: (id: BlockId, count: number) => number;
+  giveItem?: (id: number, count: number) => number;
   /** Total count of an item across the inventory. */
-  getInventoryCount?: (id: BlockId) => number;
+  getInventoryCount?: (id: number) => number;
   /** Item id in the selected hotbar slot, or null. */
-  getHeldItem?: () => BlockId | null;
+  getHeldItem?: () => number | null;
+  /** Remaining durability of the selected tool, or null. */
+  getHeldDurability?: () => number | null;
   /** Select a hotbar slot 0..8. */
   selectSlot?: (index: number) => void;
   /** Number of dropped item entities in the world. */

@@ -29,6 +29,10 @@ export const Tile = {
   Coal: 14,
   IronIngot: 15,
   RawIron: 16,
+  // Sprint 12 tool icons
+  Pickaxe: 17,
+  Axe: 18,
+  Shovel: 19,
 } as const;
 
 /**

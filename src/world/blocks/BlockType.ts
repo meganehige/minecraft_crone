@@ -43,5 +43,11 @@ export interface BlockType {
   soundGroup: SoundGroup;
   /** Block id dropped when broken (defaults handled in the registry). */
   drops: BlockId;
+  /** Preferred tool for faster mining; null = none. */
+  toolType: 'pickaxe' | 'axe' | 'shovel' | null;
+  /** If true, only drops when mined with the right tool at >= minTier. */
+  requiresTool: boolean;
+  /** Minimum tool tier (1=wood..4=diamond) needed to harvest; 0 = hand ok. */
+  minTier: number;
 }
 

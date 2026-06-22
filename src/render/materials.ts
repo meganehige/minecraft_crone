@@ -139,6 +139,34 @@ function buildAtlasCanvas(): HTMLCanvasElement {
     for (let i = 3; i < 13; i++) ctx.fillRect(ox + i, oy + (15 - i), 2, 2);
   }
 
+  // Tool icons: a stick handle plus a head shape.
+  const drawHandle = (ox: number, oy: number) => {
+    ctx.fillStyle = 'rgb(120,85,45)';
+    for (let i = 4; i < 14; i++) ctx.fillRect(ox + i, oy + (15 - i), 2, 2);
+  };
+  {
+    const [ox, oy] = tileOrigin(Tile.Pickaxe);
+    drawHandle(ox, oy);
+    ctx.strokeStyle = 'rgb(180,180,185)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ox + 3, oy + 5);
+    ctx.quadraticCurveTo(ox + 8, oy + 1, ox + 13, oy + 5);
+    ctx.stroke();
+  }
+  {
+    const [ox, oy] = tileOrigin(Tile.Axe);
+    drawHandle(ox, oy);
+    ctx.fillStyle = 'rgb(180,180,185)';
+    ctx.fillRect(ox + 8, oy + 2, 5, 6);
+  }
+  {
+    const [ox, oy] = tileOrigin(Tile.Shovel);
+    drawHandle(ox, oy);
+    ctx.fillStyle = 'rgb(180,180,185)';
+    ctx.fillRect(ox + 9, oy + 2, 4, 4);
+  }
+
   return canvas;
 }
 

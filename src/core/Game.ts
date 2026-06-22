@@ -115,11 +115,15 @@ export class Game {
       this.world,
       () => this.interaction.raycast(),
       this.sound,
-      (x, y, z, id) => {
-        // Drop the block's item at its centre; clear furnace state if any.
-        this.items.spawn(x + 0.5, y + 0.5, z + 0.5, BlockRegistry.getDrop(id), 1);
-        if (id === BlockId.Furnace) this.furnaces.remove(`${x},${y},${z}`);
+      () => this.inventory.slots[this.inventory.selected] ?? null,
+      (x, y, z, drop) => {
+        // Drop the harvested item (if any); clear furnace state if needed.
+        if (drop !== null) this.items.spawn(x + 0.5, y + 0.5, z + 0.5, drop, 1);
+        if (this.world.getBlock(x, y, z) === BlockId.Furnace) {
+          this.furnaces.remove(`${x},${y},${z}`);
+        }
       },
+      () => this.inventory.damageSelected(),
     );
     this.breakOverlay = new BreakOverlay(this.scene);
     installCrosshair();
@@ -218,6 +222,8 @@ export class Game {
       giveItem: (id, count) => this.inventory.add(id, count),
       getInventoryCount: (id) => this.inventory.countOf(id),
       getHeldItem: () => this.inventory.getSelectedItem(),
+      getHeldDurability: () =>
+        this.inventory.slots[this.inventory.selected]?.durability ?? null,
       selectSlot: (i) => this.inventory.select(i),
       getItemEntityCount: () => this.items.count,
       toggleInventory: () => this.toggleInventory(),
