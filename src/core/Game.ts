@@ -4,13 +4,27 @@ import { installDebugApi, type GameDebugApi } from './Debug';
 import { Loop } from './Loop';
 import { World } from '../world/World';
 import { ChunkManager } from '../world/ChunkManager';
+import { FallingBlocks } from '../world/FallingBlocks';
+import { FluidSimulator } from '../world/FluidSimulator';
 import { Player } from '../player/Player';
+import { Survival } from '../player/Survival';
 import { Controls } from '../player/Controls';
 import { TouchControls, isTouchDevice } from '../player/TouchControls';
+import { Hud } from '../ui/Hud';
 import { BlockInteraction } from '../interaction/BlockInteraction';
+import { MiningController } from '../interaction/Mining';
 import { installCrosshair } from '../ui/crosshair';
 import { Hotbar } from '../ui/hotbar';
+import { InventoryScreen } from '../ui/InventoryScreen';
+import { FurnaceScreen } from '../ui/FurnaceScreen';
+import { FurnaceManager } from '../crafting/Furnace';
+import { Inventory } from '../inventory/Inventory';
+import { ItemEntityManager } from '../world/ItemEntityManager';
 import { getMaterials } from '../render/materials';
+import { BreakOverlay } from '../render/BreakOverlay';
+import { SoundManager } from '../audio/SoundManager';
+import { BlockRegistry } from '../world/blocks/BlockRegistry';
+import { BlockId } from '../world/blocks/BlockType';
 import type { SaveManager } from '../persistence/SaveManager';
 
 const SIZE = Config.CHUNK_SIZE;
@@ -29,13 +43,26 @@ export class Game {
 
   private readonly world: World;
   private readonly manager: ChunkManager;
+  private readonly falling: FallingBlocks;
+  private readonly fluids: FluidSimulator;
   private readonly player: Player;
   private readonly controls: Controls;
   private readonly loop: Loop;
   private readonly interaction: BlockInteraction;
+  private readonly inventory: Inventory;
   private readonly hotbar: Hotbar;
+  private readonly inventoryScreen: InventoryScreen;
+  private readonly furnaceScreen: FurnaceScreen;
+  private readonly furnaces: FurnaceManager;
+  private readonly items: ItemEntityManager;
+  private readonly sound: SoundManager;
+  private readonly mining: MiningController;
+  private readonly breakOverlay: BreakOverlay;
+  private readonly survival: Survival;
+  private readonly hud: Hud;
   private readonly save?: SaveManager;
   private frozen = false;
+  private stepDistance = 0;
 
   // Day/night cycle.
   private daylight = 1;
@@ -69,6 +96,12 @@ export class Game {
     // lights are needed (materials are MeshBasic).
     this.world = new World(this.scene, seed, save);
     this.manager = new ChunkManager(this.world);
+    this.falling = new FallingBlocks(this.world);
+    this.fluids = new FluidSimulator(this.world);
+    this.world.onBlockChange = (x, y, z) => {
+      this.falling.mark(x, y, z);
+      this.fluids.mark(x, y, z);
+    };
 
     // Pre-generate a 3x3 spawn area so the player lands on real ground.
     this.manager.update(0.5, 0.5);
@@ -88,18 +121,59 @@ export class Game {
     this.controls = new Controls(canvas, this.player);
 
     this.interaction = new BlockInteraction(this.world, this.player);
+    this.sound = new SoundManager();
+    this.inventory = new Inventory();
+    this.items = new ItemEntityManager(this.scene, this.world);
+    this.furnaces = new FurnaceManager();
+    this.mining = new MiningController(
+      this.world,
+      () => this.interaction.raycast(),
+      this.sound,
+      () => this.inventory.slots[this.inventory.selected] ?? null,
+      (x, y, z, drop) => {
+        // Drop the harvested item (if any); clear furnace state if needed.
+        if (drop !== null) this.items.spawn(x + 0.5, y + 0.5, z + 0.5, drop, 1);
+        if (this.world.getBlock(x, y, z) === BlockId.Furnace) {
+          this.furnaces.remove(`${x},${y},${z}`);
+        }
+      },
+      () => this.inventory.damageSelected(),
+      () => this.survival.creative,
+    );
+    this.survival = new Survival();
+    this.hud = new Hud();
+    this.breakOverlay = new BreakOverlay(this.scene);
     installCrosshair();
-    this.hotbar = new Hotbar();
+    this.hotbar = new Hotbar(this.inventory);
+    this.inventoryScreen = new InventoryScreen(this.inventory);
+    this.furnaceScreen = new FurnaceScreen(this.inventory);
+    this.inventory.onChange = () => {
+      this.hotbar.refresh();
+      this.inventoryScreen.refresh();
+      this.furnaceScreen.refresh();
+    };
     this.installMouse(canvas);
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyE') {
+        if (this.furnaceScreen.isOpen()) this.furnaceScreen.close();
+        else this.toggleInventory();
+      } else if (e.code === 'KeyG') {
+        this.survival.creative = !this.survival.creative;
+      }
+    });
 
     if (isTouchDevice()) {
       new TouchControls({
         input: this.controls.input,
         player: this.player,
-        onBreak: () => this.interaction.break(),
+        onBreakStart: () => {
+          this.sound.resume();
+          this.mining.setActive(true);
+        },
+        onBreakStop: () => this.mining.setActive(false),
         onPlace: () => {
-          this.interaction.activeBlock = this.hotbar.getActive();
-          this.interaction.place();
+          this.sound.resume();
+          this.interactOrPlace();
         },
       });
     }
@@ -123,6 +197,8 @@ export class Game {
         this.player.pos.set(x, y, z);
         this.player.prevPos.set(x, y, z);
         this.player.vel.set(0, 0, 0);
+        this.player.onGround = false;
+        this.player.fallDistance = 0;
       },
       getPlayer: () => ({
         x: this.player.pos.x,
@@ -146,10 +222,7 @@ export class Game {
       setBlock: (x, y, z, id) => this.world.setBlock(x, y, z, id),
       raycast: () => this.interaction.raycast(),
       breakBlock: () => this.interaction.break(),
-      placeBlock: () => {
-        this.interaction.activeBlock = this.hotbar.getActive();
-        return this.interaction.place();
-      },
+      placeBlock: () => this.doPlace(),
       setActiveBlock: (id) => {
         this.hotbar.setActiveBlock(id);
         this.interaction.activeBlock = id;
@@ -157,6 +230,52 @@ export class Game {
       setFrozen: (frozen) => {
         this.frozen = frozen;
       },
+      setMining: (active) => {
+        this.sound.resume();
+        this.mining.setActive(active);
+      },
+      getMining: () => ({
+        progress: this.mining.progress,
+        stage: this.mining.getStage(),
+        target: this.mining.getTarget(),
+      }),
+      getSoundCounts: () => this.sound.getCounts(),
+      giveItem: (id, count) => this.inventory.add(id, count),
+      getInventoryCount: (id) => this.inventory.countOf(id),
+      getHeldItem: () => this.inventory.getSelectedItem(),
+      getHeldDurability: () =>
+        this.inventory.slots[this.inventory.selected]?.durability ?? null,
+      selectSlot: (i) => this.inventory.select(i),
+      getItemEntityCount: () => this.items.count,
+      toggleInventory: () => this.toggleInventory(),
+      isInventoryOpen: () => this.inventoryScreen.isOpen(),
+      setCraftSize: (size) => this.inventory.setCraftSize(size),
+      setCraftCell: (i, item) => this.inventory.setCraftCell(i, item),
+      getCraftOutput: () => this.inventory.getCraftOutput(),
+      takeCraftOutput: () => this.inventory.takeCraftOutput(),
+      getCursor: () => this.inventory.cursor,
+      setFurnace: (x, y, z, input, inputCount, fuel, fuelCount) => {
+        const f = this.furnaces.get(`${x},${y},${z}`);
+        f.input = input === null ? null : { item: input, count: inputCount };
+        f.fuel = fuel === null ? null : { item: fuel, count: fuelCount };
+      },
+      getFurnaceOutput: (x, y, z) =>
+        this.furnaces.get(`${x},${y},${z}`).output,
+      getHealth: () => this.survival.health,
+      getHunger: () => this.survival.hunger,
+      setHealth: (v) => {
+        this.survival.health = v;
+      },
+      setHunger: (v) => {
+        this.survival.hunger = v;
+        this.survival.saturation = 0;
+      },
+      damagePlayer: (n) => this.survival.damage(n),
+      isAlive: () => this.survival.alive,
+      setCreative: (c) => {
+        this.survival.creative = c;
+      },
+      isCreative: () => this.survival.creative,
       save: () => this.save?.flush() ?? Promise.resolve(),
       setDaylight: (v) => {
         this.daylightOverride = Math.max(0, Math.min(1, v));
@@ -177,12 +296,59 @@ export class Game {
     canvas.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement !== canvas) return;
       if (e.button === 0) {
-        this.interaction.break();
+        this.sound.resume();
+        this.mining.setActive(true); // hold to mine
       } else if (e.button === 2) {
-        this.interaction.activeBlock = this.hotbar.getActive();
-        this.interaction.place();
+        this.sound.resume();
+        this.interactOrPlace();
       }
     });
+    const stopMining = () => this.mining.setActive(false);
+    canvas.addEventListener('mouseup', (e) => {
+      if (e.button === 0) stopMining();
+    });
+    window.addEventListener('blur', stopMining);
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement !== canvas) stopMining();
+    });
+  }
+
+  /** Place the selected hotbar block, consuming one from the inventory. */
+  private doPlace(): boolean {
+    const held = this.inventory.getSelectedItem();
+    if (held === null) return false;
+    this.interaction.activeBlock = held;
+    const placed = this.interaction.place();
+    if (placed) {
+      if (!this.survival.creative) this.inventory.consumeOne();
+      this.sound.playPlace(BlockRegistry.getSoundGroup(held));
+    }
+    return placed;
+  }
+
+  private toggleInventory(size: 2 | 3 = 2): void {
+    this.inventoryScreen.toggle(size);
+    if (this.inventoryScreen.isOpen()) document.exitPointerLock?.();
+  }
+
+  /** Right-click: open a crafting table / furnace, otherwise place the held block. */
+  private interactOrPlace(): void {
+    const hit = this.interaction.raycast();
+    if (hit) {
+      const block = this.world.getBlock(hit.x, hit.y, hit.z);
+      if (block === BlockId.CraftingTable) {
+        if (!this.inventoryScreen.isOpen()) this.toggleInventory(3);
+        return;
+      }
+      if (block === BlockId.Furnace) {
+        if (!this.furnaceScreen.isOpen()) {
+          this.furnaceScreen.open(this.furnaces.get(`${hit.x},${hit.y},${hit.z}`));
+          document.exitPointerLock?.();
+        }
+        return;
+      }
+    }
+    this.doPlace();
   }
 
   private detectWebglVersion(): string | null {
@@ -204,11 +370,54 @@ export class Game {
 
   private fixedUpdate(dt: number): void {
     this.manager.update(this.player.pos.x, this.player.pos.z);
+    // Mining + item entities run even when physics is frozen (test-friendly).
+    this.mining.update(dt);
+    this.items.update(dt, this.player.pos, (item, count) =>
+      this.inventory.add(item, count),
+    );
+    if (this.furnaces.tick() && this.furnaceScreen.isOpen()) {
+      this.furnaceScreen.refresh();
+    }
+    this.falling.tick();
+    this.fluids.tick();
     if (this.frozen) {
       this.player.prevPos.copy(this.player.pos);
       return;
     }
+    const before = this.player.pos.clone();
     this.player.fixedUpdate(dt, this.controls.input, this.world);
+    this.updateFootsteps(before);
+
+    // Survival: fall damage, environment, hunger, regen, death.
+    if (this.player.justLanded > 0) this.survival.applyFall(this.player.justLanded);
+    this.survival.tick(dt, this.player, this.world);
+    if (!this.survival.alive) this.respawn();
+  }
+
+  private respawn(): void {
+    const h = this.world.generator.surfaceHeight(0, 0);
+    this.player.pos.set(0.5, h + 2, 0.5);
+    this.player.prevPos.copy(this.player.pos);
+    this.player.vel.set(0, 0, 0);
+    this.player.fallDistance = 0;
+    this.survival.reset();
+  }
+
+  /** Play a step sound for the block underfoot after travelling ~2 blocks. */
+  private updateFootsteps(before: THREE.Vector3): void {
+    if (!this.player.onGround) return;
+    const dx = this.player.pos.x - before.x;
+    const dz = this.player.pos.z - before.z;
+    this.stepDistance += Math.hypot(dx, dz);
+    if (this.stepDistance < 2.0) return;
+    this.stepDistance = 0;
+    const fx = Math.floor(this.player.pos.x);
+    const fy = Math.floor(this.player.pos.y - 0.1);
+    const fz = Math.floor(this.player.pos.z);
+    const under = this.world.getBlock(fx, fy, fz);
+    if (under !== BlockId.Air) {
+      this.sound.playStep(BlockRegistry.getSoundGroup(under));
+    }
   }
 
   private readonly eye = new THREE.Vector3();
@@ -281,6 +490,10 @@ export class Game {
     this.camera.position.copy(this.eye);
     this.lookAt.set(this.eye.x + dirX, this.eye.y + dirY, this.eye.z + dirZ);
     this.camera.lookAt(this.lookAt);
+
+    this.breakOverlay.update(this.mining.getTarget(), this.mining.getStage());
+
+    this.hud.update(this.survival.health, this.survival.hunger, this.survival.creative);
 
     this.renderer.render(this.scene, this.camera);
     this.debug.chunkStats = this.world.lastMeshStats;

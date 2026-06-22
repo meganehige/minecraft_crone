@@ -92,6 +92,84 @@ function buildAtlasCanvas(): HTMLCanvasElement {
     }
   }
 
+  // --- Sprint 11 tiles ---
+  paintNoise(ctx, Tile.Planks, [170, 130, 80], 0.12, 21);
+  paintNoise(ctx, Tile.Cobblestone, [120, 120, 122], 0.32, 22);
+  paintNoise(ctx, Tile.CraftingTable, [150, 110, 70], 0.16, 23);
+  paintNoise(ctx, Tile.Furnace, [110, 110, 112], 0.22, 24);
+  paintNoise(ctx, Tile.Stick, [90, 130, 60], 1.0, 25); // mostly transparent-ish bg via grass
+  paintNoise(ctx, Tile.Coal, [40, 40, 40], 0.4, 26);
+  paintNoise(ctx, Tile.IronIngot, [200, 200, 205], 0.1, 27);
+  paintNoise(ctx, Tile.RawIron, [200, 160, 140], 0.18, 28);
+
+  // Planks: horizontal plank seams.
+  {
+    const [ox, oy] = tileOrigin(Tile.Planks);
+    ctx.strokeStyle = shade([120, 90, 55], 1);
+    for (const y of [4, 8, 12]) {
+      ctx.beginPath();
+      ctx.moveTo(ox, oy + y + 0.5);
+      ctx.lineTo(ox + TILE_PX, oy + y + 0.5);
+      ctx.stroke();
+    }
+  }
+  // Crafting table: a grid pattern on top.
+  {
+    const [ox, oy] = tileOrigin(Tile.CraftingTable);
+    ctx.strokeStyle = shade([90, 60, 35], 1);
+    for (const d of [5, 10]) {
+      ctx.beginPath();
+      ctx.moveTo(ox + d + 0.5, oy);
+      ctx.lineTo(ox + d + 0.5, oy + TILE_PX);
+      ctx.moveTo(ox, oy + d + 0.5);
+      ctx.lineTo(ox + TILE_PX, oy + d + 0.5);
+      ctx.stroke();
+    }
+  }
+  // Furnace: a dark front opening.
+  {
+    const [ox, oy] = tileOrigin(Tile.Furnace);
+    ctx.fillStyle = 'rgb(30,30,32)';
+    ctx.fillRect(ox + 4, oy + 7, 8, 6);
+  }
+  // Stick: a single diagonal brown bar.
+  {
+    const [ox, oy] = tileOrigin(Tile.Stick);
+    ctx.fillStyle = 'rgb(120,85,45)';
+    for (let i = 3; i < 13; i++) ctx.fillRect(ox + i, oy + (15 - i), 2, 2);
+  }
+
+  paintNoise(ctx, Tile.Lava, [210, 90, 20], 0.3, 31);
+  paintNoise(ctx, Tile.Gravel, [110, 105, 100], 0.4, 32);
+
+  // Tool icons: a stick handle plus a head shape.
+  const drawHandle = (ox: number, oy: number) => {
+    ctx.fillStyle = 'rgb(120,85,45)';
+    for (let i = 4; i < 14; i++) ctx.fillRect(ox + i, oy + (15 - i), 2, 2);
+  };
+  {
+    const [ox, oy] = tileOrigin(Tile.Pickaxe);
+    drawHandle(ox, oy);
+    ctx.strokeStyle = 'rgb(180,180,185)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ox + 3, oy + 5);
+    ctx.quadraticCurveTo(ox + 8, oy + 1, ox + 13, oy + 5);
+    ctx.stroke();
+  }
+  {
+    const [ox, oy] = tileOrigin(Tile.Axe);
+    drawHandle(ox, oy);
+    ctx.fillStyle = 'rgb(180,180,185)';
+    ctx.fillRect(ox + 8, oy + 2, 5, 6);
+  }
+  {
+    const [ox, oy] = tileOrigin(Tile.Shovel);
+    drawHandle(ox, oy);
+    ctx.fillStyle = 'rgb(180,180,185)';
+    ctx.fillRect(ox + 9, oy + 2, 4, 4);
+  }
+
   return canvas;
 }
 

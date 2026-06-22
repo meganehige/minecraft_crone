@@ -23,6 +23,14 @@ export class Player {
   readonly height = 1.8;
   readonly eyeHeight = 1.62;
 
+  /** Distance fallen so far this descent (blocks). */
+  fallDistance = 0;
+  /** Fall distance captured on the tick the player landed (0 otherwise). */
+  justLanded = 0;
+  /** Whether movement input was applied this tick (for exhaustion). */
+  movedThisTick = false;
+  jumpedThisTick = false;
+
   constructor(spawn: Vector3) {
     this.pos.copy(spawn);
     this.prevPos.copy(spawn);
@@ -61,6 +69,7 @@ export class Player {
     }
 
     const len = Math.hypot(wx, wz);
+    this.movedThisTick = len > 0;
     const speed = input.sprint ? SPRINT_SPEED : WALK_SPEED;
     if (len > 0) {
       this.vel.x = (wx / len) * speed;
@@ -75,9 +84,11 @@ export class Player {
     if (this.vel.y < -TERMINAL) this.vel.y = -TERMINAL;
 
     // Jump (only when grounded).
+    this.jumpedThisTick = false;
     if (input.jump && this.onGround) {
       this.vel.y = JUMP_SPEED;
       this.onGround = false;
+      this.jumpedThisTick = true;
     }
 
     this.onGround = moveAndCollide(
@@ -88,5 +99,14 @@ export class Player {
       this.height,
       dt,
     );
+
+    // Track fall distance and capture it on landing.
+    this.justLanded = 0;
+    if (this.onGround) {
+      this.justLanded = this.fallDistance;
+      this.fallDistance = 0;
+    } else if (this.pos.y < this.prevPos.y) {
+      this.fallDistance += this.prevPos.y - this.pos.y;
+    }
   }
 }

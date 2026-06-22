@@ -3,8 +3,8 @@
  * face references a tile by index. The actual pixels are drawn procedurally in
  * materials.ts so we don't need a binary asset.
  */
-export const ATLAS_COLS = 4;
-export const ATLAS_ROWS = 4;
+export const ATLAS_COLS = 8;
+export const ATLAS_ROWS = 8;
 export const TILE_PX = 16;
 export const ATLAS_W = ATLAS_COLS * TILE_PX;
 export const ATLAS_H = ATLAS_ROWS * TILE_PX;
@@ -20,6 +20,21 @@ export const Tile = {
   WoodTop: 6,
   WoodSide: 7,
   Leaves: 8,
+  // Sprint 11 additions
+  Planks: 9,
+  Cobblestone: 10,
+  CraftingTable: 11,
+  Furnace: 12,
+  Stick: 13,
+  Coal: 14,
+  IronIngot: 15,
+  RawIron: 16,
+  // Sprint 12 tool icons
+  Pickaxe: 17,
+  Axe: 18,
+  Shovel: 19,
+  Lava: 20,
+  Gravel: 21,
 } as const;
 
 /**

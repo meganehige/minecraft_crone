@@ -63,7 +63,10 @@ test.describe('Sprint 4: block break & place', () => {
 
     // Break the top block so the ray now hits y=h-1; placing fills y=h.
     await page.evaluate(() => window.__game.breakBlock!());
-    await page.evaluate(() => window.__game.setActiveBlock!(1)); // stone
+    await page.evaluate(() => {
+      window.__game.giveItem!(1, 10); // stone into inventory
+      window.__game.setActiveBlock!(1);
+    });
 
     const placed = await page.evaluate(() => window.__game.placeBlock!());
     expect(placed).toBe(true);

@@ -1,6 +1,8 @@
 import type { InputState } from '../player/Controls';
 import type { RayHit } from '../interaction/Raycast';
 import type { BlockId } from '../world/blocks/BlockType';
+import type { MiningTarget } from '../interaction/Mining';
+import type { SoundCounts } from '../audio/SoundManager';
 
 export interface PlayerSnapshot {
   x: number;
@@ -65,8 +67,8 @@ export interface GameDebugApi {
   breakBlock?: () => boolean;
   /** Place the active block against the targeted face; returns success. */
   placeBlock?: () => boolean;
-  /** Select the active block for placement. */
-  setActiveBlock?: (id: BlockId) => void;
+  /** Select the active item/block for placement (selects a hotbar slot). */
+  setActiveBlock?: (id: number) => void;
   /** Freeze/unfreeze player physics (used by scripted interaction tests). */
   setFrozen?: (frozen: boolean) => void;
 
@@ -81,6 +83,76 @@ export interface GameDebugApi {
   getDaylight?: () => number;
   /** Average framebuffer luminance in [0,1]. */
   sampleBrightness?: () => number;
+
+  // --- Sprint 9: mining & sound ---
+  /** Start/stop timed mining of the targeted block. */
+  setMining?: (active: boolean) => void;
+  /** Current mining progress (0..1), cracking stage (0..9, -1 idle), target. */
+  getMining?: () => {
+    progress: number;
+    stage: number;
+    target: MiningTarget | null;
+  };
+  /** Cumulative counts of played sound events. */
+  getSoundCounts?: () => SoundCounts;
+
+  // --- Sprint 10: items & inventory ---
+  /** Add items to the inventory; returns leftover that did not fit. */
+  giveItem?: (id: number, count: number) => number;
+  /** Total count of an item across the inventory. */
+  getInventoryCount?: (id: number) => number;
+  /** Item id in the selected hotbar slot, or null. */
+  getHeldItem?: () => number | null;
+  /** Remaining durability of the selected tool, or null. */
+  getHeldDurability?: () => number | null;
+  /** Select a hotbar slot 0..8. */
+  selectSlot?: (index: number) => void;
+  /** Number of dropped item entities in the world. */
+  getItemEntityCount?: () => number;
+  /** Toggle the inventory screen. */
+  toggleInventory?: () => void;
+  /** Whether the inventory screen is open. */
+  isInventoryOpen?: () => boolean;
+
+  // --- Sprint 11: crafting ---
+  /** Set the crafting grid size (2 = inventory, 3 = table). */
+  setCraftSize?: (size: 2 | 3) => void;
+  /** Place a single item into a crafting cell (null clears it). */
+  setCraftCell?: (i: number, item: number | null) => void;
+  /** Current crafting output, or null. */
+  getCraftOutput?: () => { item: number; count: number } | null;
+  /** Craft once (consume inputs, output to the cursor); returns success. */
+  takeCraftOutput?: () => boolean;
+  /** The cursor stack (held while rearranging), or null. */
+  getCursor?: () => { item: number; count: number } | null;
+
+  // --- Sprint 11: smelting ---
+  /** Set a furnace's input and fuel at a position (creates it if needed). */
+  setFurnace?: (
+    x: number,
+    y: number,
+    z: number,
+    input: number | null,
+    inputCount: number,
+    fuel: number | null,
+    fuelCount: number,
+  ) => void;
+  /** Read a furnace's output stack, or null. */
+  getFurnaceOutput?: (
+    x: number,
+    y: number,
+    z: number,
+  ) => { item: number; count: number } | null;
+
+  // --- Sprint 13: survival ---
+  getHealth?: () => number;
+  getHunger?: () => number;
+  setHealth?: (v: number) => void;
+  setHunger?: (v: number) => void;
+  damagePlayer?: (n: number) => void;
+  isAlive?: () => boolean;
+  setCreative?: (creative: boolean) => void;
+  isCreative?: () => boolean;
 }
 
 declare global {

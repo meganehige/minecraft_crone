@@ -30,6 +30,9 @@ export class World implements BlockSource {
     solidBlocks: 0,
   };
 
+  /** Notified after any setBlock (used by fluid/gravity simulators). */
+  onBlockChange?: (x: number, y: number, z: number) => void;
+
   constructor(
     private readonly scene: THREE.Scene,
     seed: string | number,
@@ -85,7 +88,7 @@ export class World implements BlockSource {
     );
   }
 
-  setBlock(wx: number, wy: number, wz: number, id: BlockId): void {
+  setBlock(wx: number, wy: number, wz: number, id: BlockId, record = true): void {
     if (wy < 0 || wy >= HEIGHT) return;
     const cx = worldToChunk(wx);
     const cz = worldToChunk(wz);
@@ -94,12 +97,14 @@ export class World implements BlockSource {
     const lx = worldToLocal(wx);
     const lz = worldToLocal(wz);
     chunk.setBlock(lx, wy, lz, id);
-    this.save?.recordEdit(cx, cz, localIndex(lx, wy, lz), id);
+    // Derived changes (fluid flow, falling blocks) are not persisted as edits.
+    if (record) this.save?.recordEdit(cx, cz, localIndex(lx, wy, lz), id);
     // Border edits affect the neighbouring chunk's boundary faces.
     if (lx === 0) this.markDirty(cx - 1, cz);
     if (lx === SIZE - 1) this.markDirty(cx + 1, cz);
     if (lz === 0) this.markDirty(cx, cz - 1);
     if (lz === SIZE - 1) this.markDirty(cx, cz + 1);
+    this.onBlockChange?.(wx, wy, wz);
   }
 
   private markDirty(cx: number, cz: number): void {

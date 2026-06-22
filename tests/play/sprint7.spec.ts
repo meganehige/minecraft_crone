@@ -56,13 +56,22 @@ test.describe('Sprint 7: trees & day/night', () => {
       window.__game.setFrozen!(true);
     });
 
+    // Wait for several rendered frames so the daylight change is applied to the
+    // framebuffer before sampling (headless software-GL runs at a low fps).
+    const advance = async () => {
+      const f0 = await page.evaluate(() => window.__game.frameCount);
+      await page.waitForFunction((f) => window.__game.frameCount > f + 3, f0, {
+        timeout: 10_000,
+      });
+    };
+
     await page.evaluate(() => window.__game.setDaylight!(1));
-    await page.waitForTimeout(120);
+    await advance();
     const day = await page.evaluate(() => window.__game.sampleBrightness!());
     await page.screenshot({ path: 'test-results/sprint7-day.png' });
 
     await page.evaluate(() => window.__game.setDaylight!(0));
-    await page.waitForTimeout(120);
+    await advance();
     const night = await page.evaluate(() => window.__game.sampleBrightness!());
     await page.screenshot({ path: 'test-results/sprint7-night.png' });
 

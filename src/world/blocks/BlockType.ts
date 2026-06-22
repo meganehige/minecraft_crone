@@ -8,9 +8,24 @@ export enum BlockId {
   Water = 5,
   Wood = 6,
   Leaves = 7,
+  Planks = 8,
+  Cobblestone = 9,
+  CraftingTable = 10,
+  Furnace = 11,
+  Lava = 12,
+  Gravel = 13,
 }
 
 export type RenderLayer = 'opaque' | 'transparent';
+
+/** Material sound family for break/place/step audio. */
+export type SoundGroup =
+  | 'stone'
+  | 'dirt'
+  | 'grass'
+  | 'sand'
+  | 'wood'
+  | 'leaves';
 
 export interface BlockType {
   id: BlockId;
@@ -24,4 +39,21 @@ export interface BlockType {
   /** Atlas tile indices per face group. */
   tiles: { top: number; bottom: number; side: number };
   renderLayer: RenderLayer;
+  /** Break difficulty; base break seconds = hardness * 1.5. -1 = unbreakable. */
+  hardness: number;
+  /** Material family for sounds. */
+  soundGroup: SoundGroup;
+  /** Block id dropped when broken (defaults handled in the registry). */
+  drops: BlockId;
+  /** Preferred tool for faster mining; null = none. */
+  toolType: 'pickaxe' | 'axe' | 'shovel' | null;
+  /** If true, only drops when mined with the right tool at >= minTier. */
+  requiresTool: boolean;
+  /** Minimum tool tier (1=wood..4=diamond) needed to harvest; 0 = hand ok. */
+  minTier: number;
+  /** Falls when unsupported (sand, gravel). */
+  gravity: boolean;
+  /** Flows (water, lava). */
+  fluid: boolean;
 }
+

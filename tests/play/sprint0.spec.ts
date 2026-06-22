@@ -27,11 +27,12 @@ test('boots with a live WebGL render loop', async ({ page }) => {
   expect(info.webglVersion, 'WebGL context version').toContain('WebGL');
   expect(info.frameCount, 'frames rendered').toBeGreaterThan(0);
 
-  // Frame count should keep advancing (loop is alive).
+  // Frame count should keep advancing (loop is alive). Poll rather than use a
+  // fixed wait, since headless software-GL runs at a low frame rate.
   const first = info.frameCount;
-  await page.waitForTimeout(300);
-  const second = await page.evaluate(() => window.__game.frameCount);
-  expect(second).toBeGreaterThan(first);
+  await page.waitForFunction((f) => window.__game.frameCount > f, first, {
+    timeout: 10_000,
+  });
 
   await page.screenshot({ path: 'test-results/sprint0.png' });
 
