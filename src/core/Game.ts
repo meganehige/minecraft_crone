@@ -12,6 +12,8 @@ import { MiningController } from '../interaction/Mining';
 import { installCrosshair } from '../ui/crosshair';
 import { Hotbar } from '../ui/hotbar';
 import { InventoryScreen } from '../ui/InventoryScreen';
+import { FurnaceScreen } from '../ui/FurnaceScreen';
+import { FurnaceManager } from '../crafting/Furnace';
 import { Inventory } from '../inventory/Inventory';
 import { ItemEntityManager } from '../world/ItemEntityManager';
 import { getMaterials } from '../render/materials';
@@ -44,6 +46,8 @@ export class Game {
   private readonly inventory: Inventory;
   private readonly hotbar: Hotbar;
   private readonly inventoryScreen: InventoryScreen;
+  private readonly furnaceScreen: FurnaceScreen;
+  private readonly furnaces: FurnaceManager;
   private readonly items: ItemEntityManager;
   private readonly sound: SoundManager;
   private readonly mining: MiningController;
@@ -106,26 +110,33 @@ export class Game {
     this.sound = new SoundManager();
     this.inventory = new Inventory();
     this.items = new ItemEntityManager(this.scene, this.world);
+    this.furnaces = new FurnaceManager();
     this.mining = new MiningController(
       this.world,
       () => this.interaction.raycast(),
       this.sound,
       (x, y, z, id) => {
-        // Drop the block's item at its centre.
+        // Drop the block's item at its centre; clear furnace state if any.
         this.items.spawn(x + 0.5, y + 0.5, z + 0.5, BlockRegistry.getDrop(id), 1);
+        if (id === BlockId.Furnace) this.furnaces.remove(`${x},${y},${z}`);
       },
     );
     this.breakOverlay = new BreakOverlay(this.scene);
     installCrosshair();
     this.hotbar = new Hotbar(this.inventory);
     this.inventoryScreen = new InventoryScreen(this.inventory);
+    this.furnaceScreen = new FurnaceScreen(this.inventory);
     this.inventory.onChange = () => {
       this.hotbar.refresh();
       this.inventoryScreen.refresh();
+      this.furnaceScreen.refresh();
     };
     this.installMouse(canvas);
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyE') this.toggleInventory();
+      if (e.code === 'KeyE') {
+        if (this.furnaceScreen.isOpen()) this.furnaceScreen.close();
+        else this.toggleInventory();
+      }
     });
 
     if (isTouchDevice()) {
@@ -139,7 +150,7 @@ export class Game {
         onBreakStop: () => this.mining.setActive(false),
         onPlace: () => {
           this.sound.resume();
-          this.doPlace();
+          this.interactOrPlace();
         },
       });
     }
@@ -211,6 +222,18 @@ export class Game {
       getItemEntityCount: () => this.items.count,
       toggleInventory: () => this.toggleInventory(),
       isInventoryOpen: () => this.inventoryScreen.isOpen(),
+      setCraftSize: (size) => this.inventory.setCraftSize(size),
+      setCraftCell: (i, item) => this.inventory.setCraftCell(i, item),
+      getCraftOutput: () => this.inventory.getCraftOutput(),
+      takeCraftOutput: () => this.inventory.takeCraftOutput(),
+      getCursor: () => this.inventory.cursor,
+      setFurnace: (x, y, z, input, inputCount, fuel, fuelCount) => {
+        const f = this.furnaces.get(`${x},${y},${z}`);
+        f.input = input === null ? null : { item: input, count: inputCount };
+        f.fuel = fuel === null ? null : { item: fuel, count: fuelCount };
+      },
+      getFurnaceOutput: (x, y, z) =>
+        this.furnaces.get(`${x},${y},${z}`).output,
       save: () => this.save?.flush() ?? Promise.resolve(),
       setDaylight: (v) => {
         this.daylightOverride = Math.max(0, Math.min(1, v));
@@ -235,7 +258,7 @@ export class Game {
         this.mining.setActive(true); // hold to mine
       } else if (e.button === 2) {
         this.sound.resume();
-        this.doPlace();
+        this.interactOrPlace();
       }
     });
     const stopMining = () => this.mining.setActive(false);
@@ -261,9 +284,29 @@ export class Game {
     return placed;
   }
 
-  private toggleInventory(): void {
-    this.inventoryScreen.toggle();
+  private toggleInventory(size: 2 | 3 = 2): void {
+    this.inventoryScreen.toggle(size);
     if (this.inventoryScreen.isOpen()) document.exitPointerLock?.();
+  }
+
+  /** Right-click: open a crafting table / furnace, otherwise place the held block. */
+  private interactOrPlace(): void {
+    const hit = this.interaction.raycast();
+    if (hit) {
+      const block = this.world.getBlock(hit.x, hit.y, hit.z);
+      if (block === BlockId.CraftingTable) {
+        if (!this.inventoryScreen.isOpen()) this.toggleInventory(3);
+        return;
+      }
+      if (block === BlockId.Furnace) {
+        if (!this.furnaceScreen.isOpen()) {
+          this.furnaceScreen.open(this.furnaces.get(`${hit.x},${hit.y},${hit.z}`));
+          document.exitPointerLock?.();
+        }
+        return;
+      }
+    }
+    this.doPlace();
   }
 
   private detectWebglVersion(): string | null {
@@ -290,6 +333,9 @@ export class Game {
     this.items.update(dt, this.player.pos, (item, count) =>
       this.inventory.add(item, count),
     );
+    if (this.furnaces.tick() && this.furnaceScreen.isOpen()) {
+      this.furnaceScreen.refresh();
+    }
     if (this.frozen) {
       this.player.prevPos.copy(this.player.pos);
       return;

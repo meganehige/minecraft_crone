@@ -23,10 +23,10 @@ test.describe('Sprint 10: drops, item entities & inventory', () => {
     page.on('pageerror', (e) => errors.push(e.message));
     await boot(page);
 
-    // Place a stone, aim down, mine it -> a drop entity should spawn.
+    // Place dirt (drops itself), aim down, mine it -> a drop entity should spawn.
     const h = await page.evaluate(() => {
       const sh = window.__game.surfaceHeight!(8, 8);
-      window.__game.setBlock!(8, sh, 8, 1);
+      window.__game.setBlock!(8, sh, 8, 2); // dirt
       window.__game.teleport!(8.5, sh + 3, 8.5);
       window.__game.setView!(0, -Math.PI / 2 + 0.0001);
       window.__game.setFrozen!(true);
@@ -52,7 +52,7 @@ test.describe('Sprint 10: drops, item entities & inventory', () => {
       },
       h,
     );
-    await page.waitForFunction(() => window.__game.getInventoryCount!(1) >= 1, null, {
+    await page.waitForFunction(() => window.__game.getInventoryCount!(2) >= 1, null, {
       timeout: 6_000,
     });
     expect(await page.evaluate(() => window.__game.getItemEntityCount!())).toBe(0);

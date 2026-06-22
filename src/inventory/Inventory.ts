@@ -1,7 +1,7 @@
-import { BlockId } from '../world/blocks/BlockType';
+import type { ItemId } from './items';
+import { matchRecipe } from '../crafting/recipes';
 
-/** Items are block items for now, identified by BlockId. */
-export type ItemId = BlockId;
+export type { ItemId };
 
 export interface ItemStack {
   item: ItemId;
@@ -23,6 +23,10 @@ export class Inventory {
   selected = 0;
   /** Stack held by the cursor while rearranging in the inventory UI. */
   cursor: ItemStack | null = null;
+
+  /** Crafting grid cells (up to 3x3). Active area is craftSize x craftSize. */
+  readonly craftSlots: (ItemStack | null)[] = new Array(9).fill(null);
+  craftSize: 2 | 3 = 2;
 
   onChange?: () => void;
 
@@ -110,6 +114,93 @@ export class Inventory {
       this.cursor = slot;
     }
     this.changed();
+  }
+
+  // --- Crafting ---
+
+  /** Switch grid size, returning any now-unused cell contents to the inventory. */
+  setCraftSize(size: 2 | 3): void {
+    if (size === 2) {
+      for (let i = 4; i < 9; i++) this.returnCraftCell(i);
+    }
+    this.craftSize = size;
+    this.changed();
+  }
+
+  /** Empty the whole crafting grid back into the inventory (e.g. on close). */
+  clearCraft(): void {
+    for (let i = 0; i < 9; i++) this.returnCraftCell(i);
+    this.changed();
+  }
+
+  private returnCraftCell(i: number): void {
+    const s = this.craftSlots[i];
+    if (s) {
+      this.add(s.item, s.count);
+      this.craftSlots[i] = null;
+    }
+  }
+
+  clickCraft(i: number): void {
+    if (i < 0 || i >= 9) return;
+    const slot = this.craftSlots[i];
+    if (this.cursor === null) {
+      if (slot) {
+        this.cursor = slot;
+        this.craftSlots[i] = null;
+      }
+    } else if (!slot) {
+      this.craftSlots[i] = { item: this.cursor.item, count: 1 };
+      this.cursor.count -= 1;
+      if (this.cursor.count <= 0) this.cursor = null;
+    } else if (slot.item === this.cursor.item) {
+      if (slot.count < STACK_MAX) {
+        slot.count += 1;
+        this.cursor.count -= 1;
+        if (this.cursor.count <= 0) this.cursor = null;
+      }
+    } else {
+      this.craftSlots[i] = this.cursor;
+      this.cursor = slot;
+    }
+    this.changed();
+  }
+
+  /** Directly set a crafting cell (used by scripted tests). */
+  setCraftCell(i: number, item: ItemId | null, count = 1): void {
+    if (i < 0 || i >= 9) return;
+    this.craftSlots[i] = item === null ? null : { item, count };
+    this.changed();
+  }
+
+  /** The recipe output for the current grid, or null. */
+  getCraftOutput(): ItemStack | null {
+    const n = this.craftSize * this.craftSize;
+    const cells: (ItemId | null)[] = [];
+    for (let i = 0; i < n; i++) cells.push(this.craftSlots[i]?.item ?? null);
+    return matchRecipe(cells, this.craftSize);
+  }
+
+  /** Craft once: consume one of each grid input and yield the output. */
+  takeCraftOutput(): boolean {
+    const out = this.getCraftOutput();
+    if (!out) return false;
+    if (this.cursor) {
+      if (this.cursor.item !== out.item) return false;
+      if (this.cursor.count + out.count > STACK_MAX) return false;
+    }
+    const n = this.craftSize * this.craftSize;
+    for (let i = 0; i < n; i++) {
+      const s = this.craftSlots[i];
+      if (s) {
+        s.count -= 1;
+        if (s.count <= 0) this.craftSlots[i] = null;
+      }
+    }
+    if (this.cursor) this.cursor.count += out.count;
+    else this.cursor = { item: out.item, count: out.count };
+    this.changed();
+    return true;
   }
 
   private changed(): void {

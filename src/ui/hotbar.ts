@@ -1,6 +1,5 @@
-import { BLOCKS } from '../world/blocks/blocks';
-import type { BlockId } from '../world/blocks/BlockType';
 import { HOTBAR_SIZE, type Inventory } from '../inventory/Inventory';
+import { ItemRegistry, type ItemId } from '../inventory/items';
 
 /** Hotbar view bound to the inventory's first 9 slots (keys 1..9). */
 export class Hotbar {
@@ -52,11 +51,11 @@ export class Hotbar {
     });
   }
 
-  getActive(): BlockId | null {
+  getActive(): ItemId | null {
     return this.inventory.getSelectedItem();
   }
 
-  setActiveBlock(id: BlockId): void {
+  setActiveBlock(id: ItemId): void {
     this.inventory.selectItem(id);
   }
 
@@ -65,7 +64,7 @@ export class Hotbar {
       const el = this.slotEls[i]!;
       const stack = this.inventory.slots[i];
       el.textContent = stack
-        ? `${BLOCKS[stack.item]!.name}\n${stack.count}`
+        ? `${ItemRegistry.name(stack.item)}\n${stack.count}`
         : '';
       el.style.whiteSpace = 'pre';
       el.style.borderColor =

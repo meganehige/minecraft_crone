@@ -111,6 +111,36 @@ export interface GameDebugApi {
   toggleInventory?: () => void;
   /** Whether the inventory screen is open. */
   isInventoryOpen?: () => boolean;
+
+  // --- Sprint 11: crafting ---
+  /** Set the crafting grid size (2 = inventory, 3 = table). */
+  setCraftSize?: (size: 2 | 3) => void;
+  /** Place a single item into a crafting cell (null clears it). */
+  setCraftCell?: (i: number, item: number | null) => void;
+  /** Current crafting output, or null. */
+  getCraftOutput?: () => { item: number; count: number } | null;
+  /** Craft once (consume inputs, output to the cursor); returns success. */
+  takeCraftOutput?: () => boolean;
+  /** The cursor stack (held while rearranging), or null. */
+  getCursor?: () => { item: number; count: number } | null;
+
+  // --- Sprint 11: smelting ---
+  /** Set a furnace's input and fuel at a position (creates it if needed). */
+  setFurnace?: (
+    x: number,
+    y: number,
+    z: number,
+    input: number | null,
+    inputCount: number,
+    fuel: number | null,
+    fuelCount: number,
+  ) => void;
+  /** Read a furnace's output stack, or null. */
+  getFurnaceOutput?: (
+    x: number,
+    y: number,
+    z: number,
+  ) => { item: number; count: number } | null;
 }
 
 declare global {

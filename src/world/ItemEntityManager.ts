@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { getMaterials } from '../render/materials';
 import { tileUVRect } from '../render/atlas';
 import { BlockRegistry } from './blocks/BlockRegistry';
-import { BlockId } from './blocks/BlockType';
+import { ItemRegistry, type ItemId } from '../inventory/items';
 import type { World } from './World';
 
 const GRAVITY = 18;
@@ -14,14 +14,14 @@ const DESPAWN_AGE = 300; // seconds
 interface ItemEntity {
   pos: THREE.Vector3;
   vel: THREE.Vector3;
-  item: BlockId;
+  item: ItemId;
   count: number;
   age: number;
   mesh: THREE.Mesh;
 }
 
 /** Collect callback returns the leftover count that did not fit. */
-export type CollectFn = (item: BlockId, count: number) => number;
+export type CollectFn = (item: ItemId, count: number) => number;
 
 /**
  * Dropped item entities: small textured cubes that fall, rest on the ground,
@@ -44,8 +44,8 @@ export class ItemEntityManager {
     return this.entities.length;
   }
 
-  spawn(x: number, y: number, z: number, item: BlockId, count: number): void {
-    if (item === BlockId.Air || count <= 0) return;
+  spawn(x: number, y: number, z: number, item: ItemId, count: number): void {
+    if (count <= 0 || !ItemRegistry.get(item)) return;
     const mesh = new THREE.Mesh(this.buildGeometry(item), this.material);
     mesh.position.set(x, y, z);
     this.scene.add(mesh);
@@ -117,9 +117,9 @@ export class ItemEntityManager {
     this.entities.splice(i, 1);
   }
 
-  private buildGeometry(item: BlockId): THREE.BufferGeometry {
+  private buildGeometry(item: ItemId): THREE.BufferGeometry {
     const geo = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
-    const tile = BlockRegistry.get(item).tiles.side;
+    const tile = ItemRegistry.tile(item);
     const [u0, v0, u1, v1] = tileUVRect(tile);
     const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
     // BoxGeometry has 4 uvs per face (24 total); map every face to the tile.

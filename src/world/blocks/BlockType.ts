@@ -8,6 +8,10 @@ export enum BlockId {
   Water = 5,
   Wood = 6,
   Leaves = 7,
+  Planks = 8,
+  Cobblestone = 9,
+  CraftingTable = 10,
+  Furnace = 11,
 }
 
 export type RenderLayer = 'opaque' | 'transparent';
