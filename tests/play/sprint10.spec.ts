@@ -64,21 +64,21 @@ test.describe('Sprint 10: drops, item entities & inventory', () => {
     page,
   }) => {
     await boot(page);
+    // Dry high platform (no water): a floor block to place onto.
     const h = await page.evaluate(() => {
-      const sh = window.__game.surfaceHeight!(20, 20);
-      window.__game.setBlock!(20, sh, 20, 1);
-      window.__game.teleport!(20.5, sh + 3, 20.5);
+      const py = 100;
+      window.__game.setBlock!(20, py, 20, 1); // stone floor
+      window.__game.teleport!(20.5, py + 3, 20.5);
       window.__game.setView!(0, -Math.PI / 2 + 0.0001);
       window.__game.setFrozen!(true);
-      window.__game.breakBlock!(); // clear top so we place onto the block below
-      return sh;
+      return py;
     });
 
     // Empty hotbar slot -> cannot place.
     await page.evaluate(() => window.__game.selectSlot!(0));
     expect(await page.evaluate(() => window.__game.placeBlock!())).toBe(false);
 
-    // Give dirt, select it, place -> count decreases by one.
+    // Give dirt, select it, place onto the floor's top face -> count -1.
     await page.evaluate(() => {
       window.__game.giveItem!(2, 3);
       window.__game.setActiveBlock!(2);
@@ -87,7 +87,7 @@ test.describe('Sprint 10: drops, item entities & inventory', () => {
     expect(await page.evaluate(() => window.__game.placeBlock!())).toBe(true);
     const after = await page.evaluate(() => window.__game.getInventoryCount!(2));
     expect(after).toBe(before - 1);
-    expect(await page.evaluate((y) => window.__game.getBlock!(20, y, 20), h)).toBe(
+    expect(await page.evaluate((y) => window.__game.getBlock!(20, y + 1, 20), h)).toBe(
       DIRT,
     );
   });

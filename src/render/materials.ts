@@ -177,6 +177,8 @@ export interface Materials {
   texture: THREE.Texture;
   opaque: THREE.Material;
   transparent: THREE.Material;
+  /** The procedurally-built atlas canvas (used for HTML item icons). */
+  atlasCanvas: HTMLCanvasElement;
 }
 
 let cached: Materials | null = null;
@@ -184,7 +186,8 @@ let cached: Materials | null = null;
 export function getMaterials(): Materials {
   if (cached) return cached;
 
-  const texture = new THREE.CanvasTexture(buildAtlasCanvas());
+  const atlasCanvas = buildAtlasCanvas();
+  const texture = new THREE.CanvasTexture(atlasCanvas);
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;
   texture.generateMipmaps = false;
@@ -202,6 +205,6 @@ export function getMaterials(): Materials {
     side: THREE.DoubleSide,
   });
 
-  cached = { texture, opaque, transparent };
+  cached = { texture, opaque, transparent, atlasCanvas };
   return cached;
 }
