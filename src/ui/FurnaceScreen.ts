@@ -126,10 +126,13 @@ export class FurnaceScreen {
       whiteSpace: 'pre',
     } satisfies Partial<CSSStyleDeclaration>);
     this.root.appendChild(this.cursorEl);
-    this.root.addEventListener('mousemove', (e) => {
+    const trackCursor = (e: { clientX: number; clientY: number }) => {
       this.cursorEl.style.left = `${e.clientX + 10}px`;
       this.cursorEl.style.top = `${e.clientY + 10}px`;
-    });
+    };
+    this.root.addEventListener('mousemove', trackCursor);
+    this.root.addEventListener('pointerdown', trackCursor);
+    this.root.addEventListener('pointermove', trackCursor);
 
     document.body.appendChild(this.root);
   }

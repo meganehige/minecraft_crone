@@ -14,6 +14,8 @@ export interface TouchHooks {
   /** Release the break (mine) button. */
   onBreakStop: () => void;
   onPlace: () => void;
+  /** Open/close the personal inventory (2x2 crafting). */
+  onToggleInventory: () => void;
 }
 
 /** Should the on-screen touch UI be shown for this device? */
@@ -84,6 +86,7 @@ export class TouchControls {
     );
     this.root.appendChild(this.makeButton('btn-place', '⬛', '20px', () => this.hooks.onPlace()));
     this.root.appendChild(this.makeJumpButton());
+    this.root.appendChild(this.makeInventoryButton());
 
     document.body.appendChild(this.root);
 
@@ -176,6 +179,33 @@ export class TouchControls {
       this.jumpTimer = setTimeout(() => {
         this.hooks.input.jump = false;
       }, 140);
+    });
+    return b;
+  }
+
+  private makeInventoryButton(): HTMLDivElement {
+    const b = document.createElement('div');
+    b.textContent = '🎒';
+    b.dataset.testid = 'btn-inventory';
+    Object.assign(b.style, {
+      position: 'fixed',
+      right: '16px',
+      top: '16px',
+      width: '54px',
+      height: '54px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '24px',
+      borderRadius: '8px',
+      background: 'rgba(0,0,0,0.4)',
+      border: '2px solid rgba(255,255,255,0.5)',
+      color: '#fff',
+      touchAction: 'none',
+    } satisfies Partial<CSSStyleDeclaration>);
+    b.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.hooks.onToggleInventory();
     });
     return b;
   }

@@ -107,6 +107,45 @@ test.describe('Sprint 8: mobile touch controls', () => {
     });
     expect(await page.evaluate(() => window.__game.input!.forward)).toBe(false);
   });
+
+  test('inventory button opens and closes the inventory', async ({ page }) => {
+    await boot(page);
+    await expect(page.locator('[data-testid="btn-inventory"]')).toBeVisible();
+
+    await page.dispatchEvent('[data-testid="btn-inventory"]', 'pointerdown', {
+      pointerId: 9,
+      bubbles: true,
+    });
+    expect(await page.evaluate(() => window.__game.isInventoryOpen!())).toBe(true);
+    await expect(page.locator('[data-testid="inventory-screen"]')).toBeVisible();
+
+    await page.dispatchEvent('[data-testid="btn-inventory"]', 'pointerdown', {
+      pointerId: 9,
+      bubbles: true,
+    });
+    expect(await page.evaluate(() => window.__game.isInventoryOpen!())).toBe(false);
+  });
+
+  test('can craft on touch by tapping slots (planks 2x2 -> table)', async ({
+    page,
+  }) => {
+    await boot(page);
+    // Give 4 planks (item id 8) -> hotbar slot 0, then open the inventory.
+    await page.evaluate(() => window.__game.giveItem!(8, 4));
+    await page.dispatchEvent('[data-testid="btn-inventory"]', 'pointerdown', {
+      pointerId: 9,
+      bubbles: true,
+    });
+    expect(await page.evaluate(() => window.__game.isInventoryOpen!())).toBe(true);
+
+    // Tap the hotbar slot 0 to pick up the planks, then fill the 2x2 grid.
+    await page.click('[data-slot="0"]');
+    for (let i = 0; i < 4; i++) await page.click(`[data-craft="${i}"]`);
+
+    // The 2x2 of planks yields a crafting table.
+    const out = await page.evaluate(() => window.__game.getCraftOutput!());
+    expect(out).toEqual({ item: 10, count: 1 }); // crafting table
+  });
 });
 
 function getBlock(page: Page, x: number, y: number, z: number): Promise<number> {

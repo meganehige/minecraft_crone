@@ -175,6 +175,7 @@ export class Game {
           this.sound.resume();
           this.interactOrPlace();
         },
+        onToggleInventory: () => this.toggleInventory(),
       });
     }
 
