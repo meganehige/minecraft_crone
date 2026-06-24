@@ -244,6 +244,7 @@ export class Game {
       giveItem: (id, count) => this.inventory.add(id, count),
       getInventoryCount: (id) => this.inventory.countOf(id),
       getHeldItem: () => this.inventory.getSelectedItem(),
+      getSlot: (i) => this.inventory.slots[i] ?? null,
       getHeldDurability: () =>
         this.inventory.slots[this.inventory.selected]?.durability ?? null,
       selectSlot: (i) => this.inventory.select(i),

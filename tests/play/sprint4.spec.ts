@@ -13,14 +13,17 @@ async function boot(page: Page): Promise<void> {
   );
 }
 
-// Look straight down from above a block centre.
+// Build a dry stone platform high up (no water nearby) and look straight down
+// at its top block. Returns the top block's Y.
 async function aimDown(page: Page): Promise<number> {
   return page.evaluate(() => {
-    const h = window.__game.surfaceHeight!(8, 8);
-    window.__game.teleport!(8.5, h + 3, 8.5);
+    const py = 100;
+    window.__game.setBlock!(8, py - 1, 8, 1); // floor
+    window.__game.setBlock!(8, py, 8, 1); // target
+    window.__game.teleport!(8.5, py + 3, 8.5);
     window.__game.setView!(0, -Math.PI / 2 + 0.0001);
-    window.__game.setFrozen!(true); // keep the player still while we interact
-    return h;
+    window.__game.setFrozen!(true);
+    return py;
   });
 }
 

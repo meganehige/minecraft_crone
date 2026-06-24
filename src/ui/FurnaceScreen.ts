@@ -1,27 +1,8 @@
 import { HOTBAR_SIZE, TOTAL_SLOTS, type Inventory, type ItemStack } from '../inventory/Inventory';
-import { ItemRegistry } from '../inventory/items';
 import { COOK_TICKS, type FurnaceState } from '../crafting/Furnace';
+import { renderSlot, styleSlot } from './slots';
 
 const SLOT = '44px';
-
-function styleSlot(el: HTMLElement): void {
-  Object.assign(el.style, {
-    width: SLOT,
-    height: SLOT,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '8px',
-    fontFamily: 'monospace',
-    color: '#fff',
-    textShadow: '0 1px 2px #000',
-    background: 'rgba(0,0,0,0.4)',
-    border: '1px solid rgba(255,255,255,0.2)',
-    whiteSpace: 'pre',
-    cursor: 'pointer',
-  } satisfies Partial<CSSStyleDeclaration>);
-}
 
 /**
  * Furnace screen: input / fuel / output slots with a smelt-progress bar, plus
@@ -224,21 +205,19 @@ export class FurnaceScreen {
   }
 
   refresh(): void {
-    const label = (st: ItemStack | null) =>
-      st ? `${ItemRegistry.name(st.item)}\n${st.count}` : '';
     if (this.state) {
-      this.inputEl.textContent = label(this.state.input);
-      this.fuelEl.textContent = label(this.state.fuel);
-      this.outputEl.textContent = label(this.state.output);
+      renderSlot(this.inputEl, this.state.input);
+      renderSlot(this.fuelEl, this.state.fuel);
+      renderSlot(this.outputEl, this.state.output);
       const bar = this.progressEl.firstChild as HTMLDivElement;
       bar.style.width = `${Math.round((this.state.cook / COOK_TICKS) * 100)}%`;
     }
     for (let i = 0; i < TOTAL_SLOTS; i++) {
       const el = this.slotEls[i];
-      if (el) el.textContent = label(this.inventory.slots[i]);
+      if (el) renderSlot(el, this.inventory.slots[i]);
     }
     const c = this.inventory.cursor;
     this.cursorEl.style.display = c ? 'block' : 'none';
-    if (c) this.cursorEl.textContent = label(c);
+    if (c) renderSlot(this.cursorEl, c);
   }
 }
