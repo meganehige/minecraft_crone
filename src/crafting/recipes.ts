@@ -39,6 +39,12 @@ function toolRecipes(): ShapedRecipe[] {
       axe: Item.IronAxe,
       shovel: Item.IronShovel,
     },
+    {
+      mat: Item.Diamond,
+      pick: Item.DiamondPickaxe,
+      axe: Item.DiamondAxe,
+      shovel: Item.DiamondShovel,
+    },
   ];
   const out: ShapedRecipe[] = [];
   for (const t of tiers) {

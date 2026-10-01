@@ -51,6 +51,33 @@ function paintNoise(
   }
 }
 
+/**
+ * An ore tile: stone speckle with a handful of deterministic mineral blobs.
+ * Blob positions come from the tile's own PRNG so the texture is stable.
+ */
+function paintOre(
+  ctx: CanvasRenderingContext2D,
+  index: number,
+  mineral: RGB,
+  seed: number,
+  blobs = 5,
+): void {
+  paintNoise(ctx, index, [128, 128, 128], 0.22, seed);
+  const [ox, oy] = tileOrigin(index);
+  const rng = mulberry32(seed * 7 + 1);
+  for (let i = 0; i < blobs; i++) {
+    const bx = 2 + Math.floor(rng() * (TILE_PX - 6));
+    const by = 2 + Math.floor(rng() * (TILE_PX - 6));
+    const w = 2 + Math.floor(rng() * 2);
+    const h = 2 + Math.floor(rng() * 2);
+    ctx.fillStyle = shade(mineral, 0.85 + rng() * 0.3);
+    ctx.fillRect(ox + bx, oy + by, w, h);
+    // A lighter highlight pixel gives the blob a bit of depth.
+    ctx.fillStyle = shade(mineral, 1.25);
+    ctx.fillRect(ox + bx, oy + by, 1, 1);
+  }
+}
+
 function buildAtlasCanvas(): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = ATLAS_W;
@@ -168,6 +195,58 @@ function buildAtlasCanvas(): HTMLCanvasElement {
     drawHandle(ox, oy);
     ctx.fillStyle = 'rgb(180,180,185)';
     ctx.fillRect(ox + 9, oy + 2, 4, 4);
+  }
+
+  // --- Sprint 16: ores, bedrock and their drops ---
+  paintOre(ctx, Tile.CoalOre, [35, 35, 38], 41);
+  paintOre(ctx, Tile.IronOre, [196, 155, 120], 42);
+  paintOre(ctx, Tile.GoldOre, [232, 196, 70], 43, 4);
+  paintOre(ctx, Tile.DiamondOre, [92, 219, 213], 44, 4);
+  paintNoise(ctx, Tile.Bedrock, [62, 62, 66], 0.55, 45);
+
+  // Item icons: a faceted gem, a raw gold nugget and a gold ingot bar.
+  {
+    const [ox, oy] = tileOrigin(Tile.Diamond);
+    ctx.fillStyle = 'rgb(92,219,213)';
+    ctx.beginPath();
+    ctx.moveTo(ox + 8, oy + 2);
+    ctx.lineTo(ox + 14, oy + 8);
+    ctx.lineTo(ox + 8, oy + 14);
+    ctx.lineTo(ox + 2, oy + 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgb(200,250,248)';
+    ctx.fillRect(ox + 6, oy + 5, 3, 3);
+  }
+  {
+    const [ox, oy] = tileOrigin(Tile.RawGold);
+    ctx.fillStyle = 'rgb(214,170,60)';
+    ctx.fillRect(ox + 4, oy + 5, 8, 6);
+    ctx.fillStyle = 'rgb(245,215,110)';
+    ctx.fillRect(ox + 5, oy + 6, 3, 2);
+  }
+  {
+    const [ox, oy] = tileOrigin(Tile.GoldIngot);
+    ctx.fillStyle = 'rgb(232,196,70)';
+    ctx.fillRect(ox + 3, oy + 6, 10, 5);
+    ctx.fillStyle = 'rgb(252,235,150)';
+    ctx.fillRect(ox + 4, oy + 7, 8, 1);
+  }
+
+  // --- Sprint 17: food ---
+  {
+    const [ox, oy] = tileOrigin(Tile.Porkchop);
+    ctx.fillStyle = 'rgb(226,142,140)';
+    ctx.fillRect(ox + 3, oy + 5, 10, 7);
+    ctx.fillStyle = 'rgb(246,228,210)';
+    ctx.fillRect(ox + 3, oy + 5, 10, 2); // fat rind
+  }
+  {
+    const [ox, oy] = tileOrigin(Tile.CookedPorkchop);
+    ctx.fillStyle = 'rgb(176,96,56)';
+    ctx.fillRect(ox + 3, oy + 5, 10, 7);
+    ctx.fillStyle = 'rgb(226,190,160)';
+    ctx.fillRect(ox + 3, oy + 5, 10, 2);
   }
 
   return canvas;

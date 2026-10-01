@@ -14,6 +14,11 @@ export enum BlockId {
   Furnace = 11,
   Lava = 12,
   Gravel = 13,
+  CoalOre = 14,
+  IronOre = 15,
+  GoldOre = 16,
+  DiamondOre = 17,
+  Bedrock = 18,
 }
 
 export type RenderLayer = 'opaque' | 'transparent';
@@ -43,8 +48,11 @@ export interface BlockType {
   hardness: number;
   /** Material family for sounds. */
   soundGroup: SoundGroup;
-  /** Block id dropped when broken (defaults handled in the registry). */
-  drops: BlockId;
+  /**
+   * Item dropped when broken. Usually the block's own id, but ores drop a
+   * non-block item (coal, raw iron, ...), so this is an ItemId, not a BlockId.
+   */
+  drops: number;
   /** Preferred tool for faster mining; null = none. */
   toolType: 'pickaxe' | 'axe' | 'shovel' | null;
   /** If true, only drops when mined with the right tool at >= minTier. */

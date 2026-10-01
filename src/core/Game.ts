@@ -263,6 +263,17 @@ export class Game {
       },
       getFurnaceOutput: (x, y, z) =>
         this.furnaces.get(`${x},${y},${z}`).output,
+      countBlocks: (id, x0, y0, z0, x1, y1, z1) => {
+        let n = 0;
+        for (let x = x0; x <= x1; x++) {
+          for (let y = y0; y <= y1; y++) {
+            for (let z = z0; z <= z1; z++) {
+              if (this.world.getBlock(x, y, z) === id) n++;
+            }
+          }
+        }
+        return n;
+      },
       getHealth: () => this.survival.health,
       getHunger: () => this.survival.hunger,
       setHealth: (v) => {

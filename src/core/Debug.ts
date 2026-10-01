@@ -148,6 +148,18 @@ export interface GameDebugApi {
     z: number,
   ) => { item: number; count: number } | null;
 
+  // --- Sprint 16: ores & caves ---
+  /** Count blocks of an id inside an inclusive world-space box. */
+  countBlocks?: (
+    id: number,
+    x0: number,
+    y0: number,
+    z0: number,
+    x1: number,
+    y1: number,
+    z1: number,
+  ) => number;
+
   // --- Sprint 13: survival ---
   getHealth?: () => number;
   getHunger?: () => number;
