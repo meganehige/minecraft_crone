@@ -103,6 +103,10 @@ export interface GameDebugApi {
   getInventoryCount?: (id: number) => number;
   /** Item id in the selected hotbar slot, or null. */
   getHeldItem?: () => number | null;
+  /** Read an inventory slot's stack, or null. */
+  getSlot?: (
+    index: number,
+  ) => { item: number; count: number; durability?: number } | null;
   /** Remaining durability of the selected tool, or null. */
   getHeldDurability?: () => number | null;
   /** Select a hotbar slot 0..8. */

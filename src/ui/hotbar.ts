@@ -1,5 +1,6 @@
 import { HOTBAR_SIZE, type Inventory } from '../inventory/Inventory';
-import { ItemRegistry, type ItemId } from '../inventory/items';
+import { type ItemId } from '../inventory/items';
+import { renderSlot } from './slots';
 
 /** Hotbar view bound to the inventory's first 9 slots (keys 1..9). */
 export class Hotbar {
@@ -22,15 +23,16 @@ export class Hotbar {
     for (let i = 0; i < HOTBAR_SIZE; i++) {
       const slot = document.createElement('div');
       Object.assign(slot.style, {
+        position: 'relative',
         width: '46px',
         height: '46px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '9px',
+        fontSize: '11px',
         color: '#fff',
-        textShadow: '0 1px 2px #000',
+        textAlign: 'right',
+        lineHeight: '42px',
+        paddingRight: '3px',
+        boxSizing: 'border-box',
+        textShadow: '0 1px 2px #000, 0 0 2px #000',
         background: 'rgba(0,0,0,0.35)',
         border: '2px solid rgba(255,255,255,0.25)',
         borderRadius: '4px',
@@ -62,11 +64,7 @@ export class Hotbar {
   refresh(): void {
     for (let i = 0; i < HOTBAR_SIZE; i++) {
       const el = this.slotEls[i]!;
-      const stack = this.inventory.slots[i];
-      el.textContent = stack
-        ? `${ItemRegistry.name(stack.item)}\n${stack.count}`
-        : '';
-      el.style.whiteSpace = 'pre';
+      renderSlot(el, this.inventory.slots[i]);
       el.style.borderColor =
         i === this.inventory.selected ? '#ffffff' : 'rgba(255,255,255,0.25)';
     }
