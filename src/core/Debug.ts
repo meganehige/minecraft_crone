@@ -160,6 +160,27 @@ export interface GameDebugApi {
     z1: number,
   ) => number;
 
+  // --- Sprint 17: mobs & food ---
+  /** Spawn a mob at a position; returns its id. */
+  spawnMob?: (type: 'pig' | 'zombie', x: number, y: number, z: number) => number;
+  getMobCount?: () => number;
+  getMobs?: () => {
+    id: number;
+    type: 'pig' | 'zombie';
+    x: number;
+    y: number;
+    z: number;
+    health: number;
+  }[];
+  /** Remove every mob (used to isolate scripted tests). */
+  clearMobs?: () => void;
+  /** Enable/disable natural mob spawning. */
+  setMobSpawning?: (on: boolean) => void;
+  /** Swing at whatever the look ray hits; returns the damage dealt. */
+  attack?: () => number;
+  /** Eat the held food item; returns whether anything was eaten. */
+  eat?: () => boolean;
+
   // --- Sprint 13: survival ---
   getHealth?: () => number;
   getHunger?: () => number;

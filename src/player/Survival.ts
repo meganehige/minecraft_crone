@@ -45,6 +45,19 @@ export class Survival {
     if (this.health <= 0) this.alive = false;
   }
 
+  /**
+   * Eat a food item: restores hunger points plus a little saturation (the
+   * hidden buffer that delays the next hunger tick). Returns false when the
+   * hunger bar is already full, so the item is not wasted.
+   */
+  eat(points: number): boolean {
+    if (points <= 0 || !this.alive) return false;
+    if (this.hunger >= MAX_HUNGER) return false;
+    this.hunger = Math.min(MAX_HUNGER, this.hunger + points);
+    this.saturation = Math.min(this.hunger, this.saturation + points / 2);
+    return true;
+  }
+
   heal(amount: number): void {
     this.health = Math.min(MAX_HEALTH, this.health + amount);
   }
