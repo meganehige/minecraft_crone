@@ -260,10 +260,14 @@ export class Game {
       toggleInventory: () => this.toggleInventory(),
       isInventoryOpen: () => this.inventoryScreen.isOpen(),
       setCraftSize: (size) => this.inventory.setCraftSize(size),
-      setCraftCell: (i, item) => this.inventory.setCraftCell(i, item),
+      setCraftCell: (i, item, count) => this.inventory.setCraftCell(i, item, count),
       getCraftOutput: () => this.inventory.getCraftOutput(),
       takeCraftOutput: () => this.inventory.takeCraftOutput(),
       getCursor: () => this.inventory.cursor,
+      shiftClickSlot: (i) => this.inventory.quickMove(i),
+      rightClickSlot: (i) => this.inventory.rightClickSlot(i),
+      rightClickCraft: (i) => this.inventory.rightClickCraft(i),
+      craftAll: () => this.inventory.craftAll(),
       setFurnace: (x, y, z, input, inputCount, fuel, fuelCount) => {
         const f = this.furnaces.get(`${x},${y},${z}`);
         f.input = input === null ? null : { item: input, count: inputCount };

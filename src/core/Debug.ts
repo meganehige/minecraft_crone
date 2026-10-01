@@ -121,8 +121,8 @@ export interface GameDebugApi {
   // --- Sprint 11: crafting ---
   /** Set the crafting grid size (2 = inventory, 3 = table). */
   setCraftSize?: (size: 2 | 3) => void;
-  /** Place a single item into a crafting cell (null clears it). */
-  setCraftCell?: (i: number, item: number | null) => void;
+  /** Put items into a crafting cell (null clears it; count defaults to 1). */
+  setCraftCell?: (i: number, item: number | null, count?: number) => void;
   /** Current crafting output, or null. */
   getCraftOutput?: () => { item: number; count: number } | null;
   /** Craft once (consume inputs, output to the cursor); returns success. */
@@ -159,6 +159,16 @@ export interface GameDebugApi {
     y1: number,
     z1: number,
   ) => number;
+
+  // --- Sprint 18: inventory shortcuts ---
+  /** Shift-click a slot: bulk move between hotbar and main inventory. */
+  shiftClickSlot?: (index: number) => boolean;
+  /** Right-click a slot: split the stack in half / drop one from the cursor. */
+  rightClickSlot?: (index: number) => void;
+  /** Right-click a crafting cell. */
+  rightClickCraft?: (index: number) => void;
+  /** Shift-click the output: craft everything the grid allows. */
+  craftAll?: () => number;
 
   // --- Sprint 17: mobs & food ---
   /** Spawn a mob at a position; returns its id. */
