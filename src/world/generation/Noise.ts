@@ -1,5 +1,10 @@
 import alea from 'alea';
-import { createNoise2D, type NoiseFunction2D } from 'simplex-noise';
+import {
+  createNoise2D,
+  createNoise3D,
+  type NoiseFunction2D,
+  type NoiseFunction3D,
+} from 'simplex-noise';
 
 /**
  * Seedable 2D noise with a fractal-Brownian-motion helper. Wraps simplex-noise
@@ -8,14 +13,23 @@ import { createNoise2D, type NoiseFunction2D } from 'simplex-noise';
  */
 export class Noise {
   private readonly base: NoiseFunction2D;
+  private base3: NoiseFunction3D | null = null;
+  private readonly seedKey: string;
 
   constructor(seed: string | number, channel = 'terrain') {
-    this.base = createNoise2D(alea(`${seed}:${channel}`));
+    this.seedKey = `${seed}:${channel}`;
+    this.base = createNoise2D(alea(this.seedKey));
   }
 
   /** Raw simplex in [-1, 1]. */
   sample(x: number, z: number): number {
     return this.base(x, z);
+  }
+
+  /** Raw 3D simplex in [-1, 1]. Built lazily: most channels never need it. */
+  sample3(x: number, y: number, z: number): number {
+    if (!this.base3) this.base3 = createNoise3D(alea(`${this.seedKey}:3d`));
+    return this.base3(x, y, z);
   }
 
   /**

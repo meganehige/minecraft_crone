@@ -27,7 +27,8 @@ export const BlockRegistry = {
   getSoundGroup(id: BlockId): SoundGroup {
     return BLOCKS[id]?.soundGroup ?? 'stone';
   },
-  getDrop(id: BlockId): BlockId {
+  /** Item id dropped when the block breaks (ores drop non-block items). */
+  getDrop(id: BlockId): number {
     return BLOCKS[id]?.drops ?? id;
   },
   getToolType(id: BlockId): 'pickaxe' | 'axe' | 'shovel' | null {

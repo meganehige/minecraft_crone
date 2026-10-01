@@ -1,4 +1,5 @@
 import { Tile } from '../../render/atlas';
+import { Item } from '../../inventory/itemIds';
 import { BlockId, type BlockType } from './BlockType';
 
 type ToolType = 'pickaxe' | 'axe' | 'shovel' | null;
@@ -13,7 +14,7 @@ interface Def {
   renderLayer: 'opaque' | 'transparent';
   hardness: number;
   soundGroup: BlockType['soundGroup'];
-  drops: BlockId;
+  drops: number;
   toolType?: ToolType;
   requiresTool?: boolean;
   minTier?: number;
@@ -209,5 +210,73 @@ export const BLOCKS: BlockType[] = [
     drops: BlockId.Gravel,
     toolType: 'shovel',
     gravity: true,
+  }),
+  // --- Sprint 16: ores + bedrock ---
+  def({
+    id: BlockId.CoalOre,
+    name: 'coal ore',
+    solid: true,
+    transparent: false,
+    tiles: { top: Tile.CoalOre, bottom: Tile.CoalOre, side: Tile.CoalOre },
+    renderLayer: 'opaque',
+    hardness: 3.0,
+    soundGroup: 'stone',
+    drops: Item.Coal,
+    toolType: 'pickaxe',
+    requiresTool: true,
+    minTier: 1, // wooden pickaxe
+  }),
+  def({
+    id: BlockId.IronOre,
+    name: 'iron ore',
+    solid: true,
+    transparent: false,
+    tiles: { top: Tile.IronOre, bottom: Tile.IronOre, side: Tile.IronOre },
+    renderLayer: 'opaque',
+    hardness: 3.0,
+    soundGroup: 'stone',
+    drops: Item.RawIron,
+    toolType: 'pickaxe',
+    requiresTool: true,
+    minTier: 2, // stone pickaxe
+  }),
+  def({
+    id: BlockId.GoldOre,
+    name: 'gold ore',
+    solid: true,
+    transparent: false,
+    tiles: { top: Tile.GoldOre, bottom: Tile.GoldOre, side: Tile.GoldOre },
+    renderLayer: 'opaque',
+    hardness: 3.0,
+    soundGroup: 'stone',
+    drops: Item.RawGold,
+    toolType: 'pickaxe',
+    requiresTool: true,
+    minTier: 3, // iron pickaxe
+  }),
+  def({
+    id: BlockId.DiamondOre,
+    name: 'diamond ore',
+    solid: true,
+    transparent: false,
+    tiles: { top: Tile.DiamondOre, bottom: Tile.DiamondOre, side: Tile.DiamondOre },
+    renderLayer: 'opaque',
+    hardness: 3.0,
+    soundGroup: 'stone',
+    drops: Item.Diamond,
+    toolType: 'pickaxe',
+    requiresTool: true,
+    minTier: 3, // iron pickaxe
+  }),
+  def({
+    id: BlockId.Bedrock,
+    name: 'bedrock',
+    solid: true,
+    transparent: false,
+    tiles: { top: Tile.Bedrock, bottom: Tile.Bedrock, side: Tile.Bedrock },
+    renderLayer: 'opaque',
+    hardness: -1, // unbreakable: the world floor
+    soundGroup: 'stone',
+    drops: BlockId.Air,
   }),
 ];

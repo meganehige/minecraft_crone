@@ -20,6 +20,9 @@ import { FurnaceScreen } from '../ui/FurnaceScreen';
 import { FurnaceManager } from '../crafting/Furnace';
 import { Inventory } from '../inventory/Inventory';
 import { ItemEntityManager } from '../world/ItemEntityManager';
+import { MobManager } from '../entity/MobManager';
+import { ItemRegistry } from '../inventory/items';
+import { playerRay } from '../interaction/BlockInteraction';
 import { getMaterials } from '../render/materials';
 import { BreakOverlay } from '../render/BreakOverlay';
 import { SoundManager } from '../audio/SoundManager';
@@ -55,6 +58,7 @@ export class Game {
   private readonly furnaceScreen: FurnaceScreen;
   private readonly furnaces: FurnaceManager;
   private readonly items: ItemEntityManager;
+  private readonly mobs: MobManager;
   private readonly sound: SoundManager;
   private readonly mining: MiningController;
   private readonly breakOverlay: BreakOverlay;
@@ -141,6 +145,10 @@ export class Game {
       () => this.survival.creative,
     );
     this.survival = new Survival();
+    this.mobs = new MobManager(this.scene, this.world, {
+      drop: (x, y, z, item, count) => this.items.spawn(x, y, z, item, count),
+      hurtPlayer: (n) => this.survival.damage(n),
+    });
     this.hud = new Hud();
     this.breakOverlay = new BreakOverlay(this.scene);
     installCrosshair();
@@ -168,7 +176,7 @@ export class Game {
         player: this.player,
         onBreakStart: () => {
           this.sound.resume();
-          this.mining.setActive(true);
+          this.attackOrMine();
         },
         onBreakStop: () => this.mining.setActive(false),
         onPlace: () => {
@@ -252,10 +260,14 @@ export class Game {
       toggleInventory: () => this.toggleInventory(),
       isInventoryOpen: () => this.inventoryScreen.isOpen(),
       setCraftSize: (size) => this.inventory.setCraftSize(size),
-      setCraftCell: (i, item) => this.inventory.setCraftCell(i, item),
+      setCraftCell: (i, item, count) => this.inventory.setCraftCell(i, item, count),
       getCraftOutput: () => this.inventory.getCraftOutput(),
       takeCraftOutput: () => this.inventory.takeCraftOutput(),
       getCursor: () => this.inventory.cursor,
+      shiftClickSlot: (i) => this.inventory.quickMove(i),
+      rightClickSlot: (i) => this.inventory.rightClickSlot(i),
+      rightClickCraft: (i) => this.inventory.rightClickCraft(i),
+      craftAll: () => this.inventory.craftAll(),
       setFurnace: (x, y, z, input, inputCount, fuel, fuelCount) => {
         const f = this.furnaces.get(`${x},${y},${z}`);
         f.input = input === null ? null : { item: input, count: inputCount };
@@ -263,6 +275,26 @@ export class Game {
       },
       getFurnaceOutput: (x, y, z) =>
         this.furnaces.get(`${x},${y},${z}`).output,
+      countBlocks: (id, x0, y0, z0, x1, y1, z1) => {
+        let n = 0;
+        for (let x = x0; x <= x1; x++) {
+          for (let y = y0; y <= y1; y++) {
+            for (let z = z0; z <= z1; z++) {
+              if (this.world.getBlock(x, y, z) === id) n++;
+            }
+          }
+        }
+        return n;
+      },
+      spawnMob: (type, x, y, z) => this.mobs.spawn(type, x, y, z),
+      getMobCount: () => this.mobs.count,
+      getMobs: () => this.mobs.list(),
+      clearMobs: () => this.mobs.clear(),
+      setMobSpawning: (on) => {
+        this.mobs.spawning = on;
+      },
+      attack: () => this.tryAttack(),
+      eat: () => this.tryEat(),
       getHealth: () => this.survival.health,
       getHunger: () => this.survival.hunger,
       setHealth: (v) => {
@@ -299,7 +331,7 @@ export class Game {
       if (document.pointerLockElement !== canvas) return;
       if (e.button === 0) {
         this.sound.resume();
-        this.mining.setActive(true); // hold to mine
+        this.attackOrMine();
       } else if (e.button === 2) {
         this.sound.resume();
         this.interactOrPlace();
@@ -313,6 +345,38 @@ export class Game {
     document.addEventListener('pointerlockchange', () => {
       if (document.pointerLockElement !== canvas) stopMining();
     });
+  }
+
+  /**
+   * Left click: punch a mob if one is under the crosshair within reach,
+   * otherwise start mining the block there.
+   */
+  private attackOrMine(): void {
+    if (this.tryAttack() > 0) return;
+    this.mining.setActive(true); // hold to mine
+  }
+
+  /** Swing at whatever mob the look ray hits. Returns the damage dealt. */
+  private tryAttack(): number {
+    const r = playerRay(this.player);
+    const held = this.inventory.getSelectedItem();
+    const tool = held === null ? undefined : ItemRegistry.tool(held);
+    // Bare hands do 1; a tool adds its tier (no swords in this build yet).
+    const damage = 1 + (tool?.tier ?? 0);
+    const dealt = this.mobs.attack(r.ox, r.oy, r.oz, r.dx, r.dy, r.dz, damage);
+    if (dealt > 0) this.sound.playDig('dirt');
+    return dealt;
+  }
+
+  /** Eat the held food item if it would do anything. Returns whether it did. */
+  private tryEat(): boolean {
+    const held = this.inventory.getSelectedItem();
+    if (held === null) return false;
+    const points = ItemRegistry.food(held);
+    if (points <= 0) return false;
+    if (!this.survival.eat(points)) return false;
+    this.inventory.consumeOne();
+    return true;
   }
 
   /** Place the selected hotbar block, consuming one from the inventory. */
@@ -350,6 +414,7 @@ export class Game {
         return;
       }
     }
+    if (this.tryEat()) return;
     this.doPlace();
   }
 
@@ -382,6 +447,7 @@ export class Game {
     }
     this.falling.tick();
     this.fluids.tick();
+    this.mobs.update(dt, this.player.pos, this.player.eyeHeight);
     if (this.frozen) {
       this.player.prevPos.copy(this.player.pos);
       return;
@@ -451,6 +517,7 @@ export class Game {
     const materials = getMaterials();
     (materials.opaque as THREE.MeshBasicMaterial).color.setScalar(b);
     (materials.transparent as THREE.MeshBasicMaterial).color.setScalar(b);
+    this.mobs.setBrightness(b);
 
     this.skyColor.lerpColors(this.nightColor, this.dayColor, this.daylight);
     (this.scene.background as THREE.Color).copy(this.skyColor);

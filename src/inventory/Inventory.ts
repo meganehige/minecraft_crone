@@ -139,6 +139,99 @@ export class Inventory {
     this.changed();
   }
 
+  /**
+   * Shift-click: send a stack straight to "the other half" of the inventory
+   * (hotbar <-> main), topping up matching stacks before taking an empty slot.
+   * Returns whether anything actually moved.
+   */
+  quickMove(index: number): boolean {
+    if (index < 0 || index >= TOTAL_SLOTS) return false;
+    const src = this.slots[index];
+    if (!src) return false;
+    const fromHotbar = index < HOTBAR_SIZE;
+    const lo = fromHotbar ? HOTBAR_SIZE : 0;
+    const hi = fromHotbar ? TOTAL_SLOTS : HOTBAR_SIZE;
+    const max = ItemRegistry.maxStack(src.item);
+    let moved = false;
+
+    // Tools carry their own durability, so they never merge into another stack.
+    if (src.durability === undefined) {
+      for (let i = lo; i < hi && src.count > 0; i++) {
+        const t = this.slots[i];
+        if (t && t.item === src.item && t.durability === undefined && t.count < max) {
+          const take = Math.min(max - t.count, src.count);
+          t.count += take;
+          src.count -= take;
+          moved = true;
+        }
+      }
+    }
+    if (src.count > 0) {
+      for (let i = lo; i < hi; i++) {
+        if (!this.slots[i]) {
+          this.slots[i] = src;
+          this.slots[index] = null;
+          moved = true;
+          break;
+        }
+      }
+    }
+    if (src.count <= 0 && this.slots[index] === src) this.slots[index] = null;
+    if (moved) this.changed();
+    return moved;
+  }
+
+  /**
+   * Right-click a slot: with an empty cursor take half the stack (rounded up),
+   * otherwise drop a single item from the cursor into it.
+   */
+  rightClickSlot(index: number): void {
+    if (index < 0 || index >= TOTAL_SLOTS) return;
+    const slot = this.slots[index];
+    if (this.cursor === null) {
+      if (!slot) return;
+      const take = Math.ceil(slot.count / 2);
+      if (take >= slot.count) {
+        this.cursor = slot;
+        this.slots[index] = null;
+      } else {
+        this.cursor = { item: slot.item, count: take };
+        slot.count -= take;
+      }
+    } else {
+      const cur = this.cursor;
+      if (!slot) {
+        this.slots[index] =
+          cur.durability === undefined
+            ? { item: cur.item, count: 1 }
+            : { item: cur.item, count: 1, durability: cur.durability };
+        cur.count -= 1;
+      } else if (
+        slot.item === cur.item &&
+        slot.count < ItemRegistry.maxStack(slot.item)
+      ) {
+        slot.count += 1;
+        cur.count -= 1;
+      } else {
+        return; // nothing sensible to do; leave both as they are
+      }
+      if (cur.count <= 0) this.cursor = null;
+    }
+    this.changed();
+  }
+
+  /** Is there room for `count` of `item` across the inventory? */
+  hasRoomFor(item: ItemId, count: number): boolean {
+    const max = ItemRegistry.maxStack(item);
+    let room = 0;
+    for (const s of this.slots) {
+      if (!s) room += max;
+      else if (s.item === item && s.durability === undefined) room += max - s.count;
+      if (room >= count) return true;
+    }
+    return room >= count;
+  }
+
   // --- Crafting ---
 
   /** Switch grid size, returning any now-unused cell contents to the inventory. */
@@ -228,6 +321,55 @@ export class Inventory {
     else this.cursor = freshStack(out.item, out.count);
     this.changed();
     return true;
+  }
+
+  /**
+   * Right-click a crafting cell: same half/one semantics as an inventory slot,
+   * but cells only ever hold what the grid needs.
+   */
+  rightClickCraft(i: number): void {
+    if (i < 0 || i >= 9) return;
+    const slot = this.craftSlots[i];
+    if (this.cursor === null) {
+      if (!slot) return;
+      const take = Math.ceil(slot.count / 2);
+      if (take >= slot.count) {
+        this.cursor = slot;
+        this.craftSlots[i] = null;
+      } else {
+        this.cursor = { item: slot.item, count: take };
+        slot.count -= take;
+      }
+      this.changed();
+      return;
+    }
+    // With a full cursor this behaves exactly like a left click (one item in).
+    this.clickCraft(i);
+  }
+
+  /**
+   * Shift-click the output: craft repeatedly, straight into the inventory,
+   * until the grid runs out or there is no room for the result.
+   */
+  craftAll(): number {
+    let crafted = 0;
+    for (let guard = 0; guard < 512; guard++) {
+      const out = this.getCraftOutput();
+      if (!out) break;
+      if (!this.hasRoomFor(out.item, out.count)) break;
+      const n = this.craftSize * this.craftSize;
+      for (let i = 0; i < n; i++) {
+        const s = this.craftSlots[i];
+        if (s) {
+          s.count -= 1;
+          if (s.count <= 0) this.craftSlots[i] = null;
+        }
+      }
+      this.add(out.item, out.count);
+      crafted += out.count;
+    }
+    if (crafted > 0) this.changed();
+    return crafted;
   }
 
   private changed(): void {

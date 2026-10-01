@@ -1,9 +1,10 @@
 import { Tile } from '../render/atlas';
 import { BlockId } from '../world/blocks/BlockType';
 import { BLOCKS } from '../world/blocks/blocks';
+import { Item, type ItemId } from './itemIds';
 
-/** Items are block items (id === BlockId) or non-block items (id >= 100). */
-export type ItemId = number;
+export { Item };
+export type { ItemId };
 
 export type ToolType = 'pickaxe' | 'axe' | 'shovel';
 
@@ -16,26 +17,6 @@ export interface ToolInfo {
   maxDurability: number;
 }
 
-/** Non-block item ids. */
-export const Item = {
-  Stick: 100,
-  Coal: 101,
-  IronIngot: 102,
-  RawIron: 103,
-  // Tools: pickaxe 110-113, axe 120-123, shovel 130-133 (tier order wood..diamond).
-  WoodPickaxe: 110,
-  StonePickaxe: 111,
-  IronPickaxe: 112,
-  DiamondPickaxe: 113,
-  WoodAxe: 120,
-  StoneAxe: 121,
-  IronAxe: 122,
-  DiamondAxe: 123,
-  WoodShovel: 130,
-  StoneShovel: 131,
-  IronShovel: 132,
-  DiamondShovel: 133,
-} as const;
 
 export interface ItemDef {
   id: ItemId;
@@ -45,6 +26,8 @@ export interface ItemDef {
   block: BlockId | null;
   maxStack: number;
   tool?: ToolInfo;
+  /** Hunger points restored when eaten; absent for inedible items. */
+  food?: number;
 }
 
 const TIER_NAMES = ['', 'wooden', 'stone', 'iron', 'diamond'];
@@ -61,6 +44,18 @@ const NON_BLOCK: ItemDef[] = [
   { id: Item.Coal, name: 'coal', tile: Tile.Coal, block: null, maxStack: 64 },
   { id: Item.IronIngot, name: 'iron ingot', tile: Tile.IronIngot, block: null, maxStack: 64 },
   { id: Item.RawIron, name: 'raw iron', tile: Tile.RawIron, block: null, maxStack: 64 },
+  { id: Item.Diamond, name: 'diamond', tile: Tile.Diamond, block: null, maxStack: 64 },
+  { id: Item.RawGold, name: 'raw gold', tile: Tile.RawGold, block: null, maxStack: 64 },
+  { id: Item.GoldIngot, name: 'gold ingot', tile: Tile.GoldIngot, block: null, maxStack: 64 },
+  { id: Item.Porkchop, name: 'raw porkchop', tile: Tile.Porkchop, block: null, maxStack: 64, food: 3 },
+  {
+    id: Item.CookedPorkchop,
+    name: 'cooked porkchop',
+    tile: Tile.CookedPorkchop,
+    block: null,
+    maxStack: 64,
+    food: 8,
+  },
 ];
 
 /** Build the 12 tool defs (pickaxe/axe/shovel × wood/stone/iron/diamond). */
@@ -120,5 +115,11 @@ export const ItemRegistry = {
   },
   tool(id: ItemId): ToolInfo | undefined {
     return ITEMS.get(id)?.tool;
+  },
+  food(id: ItemId): number {
+    return ITEMS.get(id)?.food ?? 0;
+  },
+  isFood(id: ItemId): boolean {
+    return (ITEMS.get(id)?.food ?? 0) > 0;
   },
 };

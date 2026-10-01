@@ -35,6 +35,18 @@ export const Tile = {
   Shovel: 19,
   Lava: 20,
   Gravel: 21,
+  // Sprint 16: ores, bedrock and their drops
+  CoalOre: 22,
+  IronOre: 23,
+  GoldOre: 24,
+  DiamondOre: 25,
+  Bedrock: 26,
+  Diamond: 27,
+  RawGold: 28,
+  GoldIngot: 29,
+  // Sprint 17: food
+  Porkchop: 30,
+  CookedPorkchop: 31,
 } as const;
 
 /**

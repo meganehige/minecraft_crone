@@ -3,11 +3,20 @@ import { renderSlot, styleSlot, resolveSlot, type SlotRef } from './slots';
 
 const SLOT = 44;
 
+/** A touch hold this long counts as a long press (the shift-click stand-in). */
+const LONG_PRESS_MS = 400;
+
 /**
  * Inventory screen (toggle with E / the touch button): a crafting grid (2x2, or
  * 3x3 at a crafting table) with an output slot, the 27 main slots and the 9
  * hotbar slots. Items show as icons with a count; they move via tap-to-pick /
  * tap-to-place or by dragging from one slot to another (mouse or touch).
+ *
+ * Shortcuts: shift-click sends a whole stack between the hotbar and the main
+ * inventory (and crafts everything the grid allows from the output slot), and
+ * right-click splits a stack in half or drops a single item from the cursor.
+ * Touch has no shift or right button, so a long press stands in for
+ * shift-click.
  */
 export class InventoryScreen {
   private readonly root: HTMLDivElement;
@@ -20,6 +29,7 @@ export class InventoryScreen {
   private builtCraftSize = 0;
   private open = false;
   private downRef: SlotRef | null = null;
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly inventory: Inventory) {
     this.root = document.createElement('div');
@@ -97,6 +107,8 @@ export class InventoryScreen {
     this.root.addEventListener('pointerdown', (e) => this.onDown(e));
     window.addEventListener('pointerup', (e) => this.onUp(e));
     this.root.addEventListener('pointermove', (e) => this.moveCursor(e));
+    // Right-click is a split, not a browser menu.
+    this.root.addEventListener('contextmenu', (e) => e.preventDefault());
 
     document.body.appendChild(this.root);
   }
@@ -131,14 +143,65 @@ export class InventoryScreen {
     else this.inventory.takeCraftOutput();
   }
 
+  /** Shift-click (or long press): bulk move, or craft out the whole grid. */
+  private actBulk(ref: SlotRef): void {
+    if (ref.kind === 'inv') this.inventory.quickMove(ref.index);
+    else if (ref.kind === 'output') this.inventory.craftAll();
+    else this.inventory.clickCraft(ref.index);
+    this.refresh();
+  }
+
+  /** Right-click: split a stack in half, or drop a single held item. */
+  private actSplit(ref: SlotRef): void {
+    if (ref.kind === 'inv') this.inventory.rightClickSlot(ref.index);
+    else if (ref.kind === 'craft') this.inventory.rightClickCraft(ref.index);
+    else this.inventory.takeCraftOutput();
+    this.refresh();
+  }
+
   private onDown(e: PointerEvent): void {
     this.moveCursor(e);
     const ref = resolveSlot(e.target);
+    this.cancelLongPress();
+    if (!ref) {
+      this.downRef = null;
+      return;
+    }
+    if (e.shiftKey) {
+      this.downRef = null;
+      this.actBulk(ref);
+      return;
+    }
+    if (e.button === 2) {
+      this.downRef = null;
+      this.actSplit(ref);
+      return;
+    }
     this.downRef = ref;
-    if (ref) this.actDown(ref);
+    const wasHolding = this.inventory.cursor !== null;
+    this.actDown(ref);
+    // Touch has no modifier keys: holding the slot does the bulk move instead.
+    // Only when the press started as a plain pick-up, so the stack can simply
+    // be put back before being moved as a whole.
+    if (e.pointerType === 'touch' && !wasHolding && this.inventory.cursor) {
+      this.longPressTimer = setTimeout(() => {
+        this.longPressTimer = null;
+        this.downRef = null;
+        if (this.inventory.cursor) this.actDown(ref); // put it back
+        this.actBulk(ref);
+      }, LONG_PRESS_MS);
+    }
+  }
+
+  private cancelLongPress(): void {
+    if (this.longPressTimer !== null) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
   }
 
   private onUp(e: PointerEvent): void {
+    this.cancelLongPress();
     if (!this.open || !this.downRef) {
       this.downRef = null;
       return;

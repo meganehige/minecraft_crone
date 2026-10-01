@@ -8,11 +8,17 @@ const COOK_TICKS = 200; // 10 seconds at 20 TPS
 const SMELT: Record<number, ItemId> = {
   [BlockId.Cobblestone]: BlockId.Stone,
   [Item.RawIron]: Item.IronIngot,
+  [Item.RawGold]: Item.GoldIngot,
+  [Item.Porkchop]: Item.CookedPorkchop,
+  // Ore blocks can be smelted directly too (silk-touch-style shortcuts aside).
+  [BlockId.IronOre]: Item.IronIngot,
+  [BlockId.GoldOre]: Item.GoldIngot,
 };
 
 /** fuel item -> burn ticks it provides. */
 const FUEL: Record<number, number> = {
   [Item.Coal]: 1600,
+  [BlockId.CoalOre]: 1600,
   [BlockId.Wood]: 300,
   [BlockId.Planks]: 300,
   [Item.Stick]: 100,
